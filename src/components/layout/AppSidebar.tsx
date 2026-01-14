@@ -6,10 +6,18 @@ import {
   Monitor, 
   Video,
   Settings,
-  Key,
-  User
+  User,
+  Moon,
+  Sun
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 
 interface NavItem {
   id: string;
@@ -30,6 +38,8 @@ const navItems: NavItem[] = [
 
 export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
 
   return (
     <aside
@@ -79,22 +89,57 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
         )}
       </button>
 
-      {/* Footer */}
+      {/* Footer with User Menu */}
       <div className="p-3 border-t border-sidebar-border">
-        <div className={cn(
-          "flex items-center gap-3 px-3 py-2",
-          collapsed && "justify-center"
-        )}>
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <User className="w-4 h-4 text-primary" />
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">Admin</p>
-              <p className="text-xs text-muted-foreground truncate">admin@transcoder.io</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 w-full rounded-lg hover:bg-secondary transition-colors",
+                collapsed && "justify-center"
+              )}
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium text-foreground truncate">Admin</p>
+                  <p className="text-xs text-muted-foreground truncate">admin@transcoder.io</p>
+                </div>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent 
+            className="w-56 p-2" 
+            side={collapsed ? "right" : "top"} 
+            align={collapsed ? "end" : "start"}
+          >
+            <div className="space-y-1">
+              {/* Settings */}
+              <button className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-secondary transition-colors text-foreground">
+                <Settings className="w-4 h-4" />
+                <span>Settings</span>
+              </button>
+
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-3">
+                  {isDark ? (
+                    <Moon className="w-4 h-4 text-foreground" />
+                  ) : (
+                    <Sun className="w-4 h-4 text-foreground" />
+                  )}
+                  <span className="text-sm text-foreground">Dark Mode</span>
+                </div>
+                <Switch
+                  checked={isDark}
+                  onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                />
+              </div>
             </div>
-          )}
-        </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </aside>
   );
