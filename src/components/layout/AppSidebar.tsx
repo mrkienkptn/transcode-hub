@@ -10,6 +10,7 @@ import {
   Moon,
   Sun
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,8 @@ interface NavItem {
   id: string;
   label: string;
   icon: React.ReactNode;
+  path: string;
+  defaultTab?: string;
 }
 
 interface AppSidebarProps {
@@ -31,9 +34,9 @@ interface AppSidebarProps {
 }
 
 const navItems: NavItem[] = [
-  { id: "general", label: "General", icon: <Info className="w-5 h-5" /> },
-  { id: "monitor", label: "Monitor", icon: <Monitor className="w-5 h-5" /> },
-  { id: "transcoder", label: "Transcoder", icon: <Video className="w-5 h-5" /> },
+  { id: "general", label: "General", icon: <Info className="w-5 h-5" />, path: "/" },
+  { id: "monitor", label: "Monitor", icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "machine" },
+  { id: "transcoder", label: "Transcoder", icon: <Video className="w-5 h-5" />, path: "/transcoder", defaultTab: "preset" },
 ];
 
 export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
@@ -69,9 +72,9 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
         {navItems.map((item) => (
-          <button
+          <Link
             key={item.id}
-            onClick={() => onNavChange(item.id)}
+            to={item.defaultTab ? `${item.path}/${item.defaultTab}` : item.path}
             className={cn(
               "nav-item w-full",
               activeNav === item.id && "nav-item-active"
@@ -79,7 +82,7 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
           >
             {item.icon}
             {!collapsed && <span className="text-sm">{item.label}</span>}
-          </button>
+          </Link>
         ))}
       </nav>
 
