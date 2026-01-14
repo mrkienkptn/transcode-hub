@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -38,8 +38,14 @@ const navItems: NavItem[] = [
 
 export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  const isDark = mounted ? theme === "dark" : true;
 
   return (
     <aside
