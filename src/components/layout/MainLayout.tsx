@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopTaskbar } from "./TopTaskbar";
 import { GeneralView } from "@/components/views/GeneralView";
@@ -9,6 +9,7 @@ interface TabConfig {
   tabs: { id: string; label: string }[];
   defaultTab: string;
   title: string;
+  path: string;
 }
 
 const tabConfigs: Record<string, TabConfig> = {
@@ -16,6 +17,7 @@ const tabConfigs: Record<string, TabConfig> = {
     tabs: [],
     defaultTab: "",
     title: "General",
+    path: "/",
   },
   monitor: {
     tabs: [
@@ -24,6 +26,7 @@ const tabConfigs: Record<string, TabConfig> = {
     ],
     defaultTab: "machine",
     title: "Monitor",
+    path: "/monitor",
   },
   transcoder: {
     tabs: [
@@ -33,24 +36,38 @@ const tabConfigs: Record<string, TabConfig> = {
     ],
     defaultTab: "preset",
     title: "Transcoder",
+    path: "/transcoder",
   },
 };
 
-export function MainLayout() {
-  const [activeNav, setActiveNav] = useState("general");
-  const [activeTabs, setActiveTabs] = useState<Record<string, string>>({
-    monitor: "machine",
-    transcoder: "preset",
-  });
+function getActiveNavFromPath(pathname: string): string {
+  if (pathname.startsWith("/monitor")) return "monitor";
+  if (pathname.startsWith("/transcoder")) return "transcoder";
+  return "general";
+}
 
+export function MainLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
+
+  const activeNav = getActiveNavFromPath(location.pathname);
   const currentConfig = tabConfigs[activeNav];
-  const currentTab = activeTabs[activeNav] || currentConfig.defaultTab;
+  
+  // Use tab from URL params, or default tab
+  const currentTab = tab || currentConfig.defaultTab;
+
+  const handleNavChange = (navId: string) => {
+    const config = tabConfigs[navId];
+    if (config.tabs.length > 0) {
+      navigate(`${config.path}/${config.defaultTab}`);
+    } else {
+      navigate(config.path);
+    }
+  };
 
   const handleTabChange = (tabId: string) => {
-    setActiveTabs((prev) => ({
-      ...prev,
-      [activeNav]: tabId,
-    }));
+    navigate(`${currentConfig.path}/${tabId}`);
   };
 
   const renderContent = () => {
@@ -68,7 +85,7 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen bg-background">
-      <AppSidebar activeNav={activeNav} onNavChange={setActiveNav} />
+      <AppSidebar activeNav={activeNav} onNavChange={handleNavChange} />
       
       <div className="flex-1 flex flex-col min-w-0">
         <TopTaskbar
