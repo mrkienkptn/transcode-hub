@@ -1,4 +1,5 @@
 import { Plus, Search, Play, Pause, Square, Settings2, Trash2, Radio } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const channels = [
+// TODO: Replace with actual API call
+const mockChannels = [
   { id: 1, name: "Channel 1 - Sports", input: "rtmp://input.stream/sports", profile: "Broadcast Standard", status: "running", bitrate: "8.2 Mbps", uptime: "4h 32m" },
   { id: 2, name: "Channel 2 - News", input: "srt://192.168.1.50:9000", profile: "OTT Adaptive", status: "running", bitrate: "24.5 Mbps", uptime: "12h 15m" },
   { id: 3, name: "Channel 3 - Entertainment", input: "rtmp://input.stream/ent", profile: "Social Media Package", status: "idle", bitrate: "0 Mbps", uptime: "-" },
@@ -27,6 +29,22 @@ const statusConfig = {
 };
 
 export function ChannelManager() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const nameFilter = searchParams.get("name") || "";
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      setSearchParams({ name: value });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  // Filter channels based on URL search param
+  const filteredChannels = mockChannels.filter((channel) =>
+    channel.name.toLowerCase().includes(nameFilter.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -36,6 +54,8 @@ export function ChannelManager() {
           <Input 
             placeholder="Search channels..." 
             className="pl-10 bg-secondary/50 border-border/50"
+            value={nameFilter}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <Button className="gap-2">
@@ -60,7 +80,7 @@ export function ChannelManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {channels.map((channel) => {
+              {filteredChannels.map((channel) => {
                 const status = statusConfig[channel.status as keyof typeof statusConfig];
                 return (
                   <TableRow key={channel.id} className="border-border/30 hover:bg-secondary/30">
