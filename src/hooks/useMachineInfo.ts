@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getMachineInfo, MachineInfo } from '@/lib/api';
+import { getMachineInfo, MachineInfo } from '@/api/machine';
 
 export function useMachineInfo() {
   return useQuery<MachineInfo | null, Error>({
