@@ -1,7 +1,12 @@
-import { Info, Key, User, Server, Clock, Shield } from "lucide-react";
+import { Info, Key, User, Server, Clock, Shield, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMachineInfo } from "@/hooks/useMachineInfo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export function GeneralView() {
+  const { data: machineInfo, isLoading, error, refetch, isFetching } = useMachineInfo();
+
   return (
     <div className="space-y-6 animate-slide-in">
       {/* Application Info */}
@@ -102,31 +107,68 @@ export function GeneralView() {
       {/* Server Info */}
       <Card className="glass-card">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Server className="w-4 h-4 text-primary" />
-            Server Info
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-primary" />
+              Server Info
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-8 w-8"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="stat-card">
-            <p className="metric-label">Hostname</p>
-            <p className="text-foreground font-mono text-sm">transcoder-prod-01</p>
-          </div>
-          <div className="stat-card">
-            <p className="metric-label">IP Address</p>
-            <p className="text-foreground font-mono text-sm">192.168.1.100</p>
-          </div>
-          <div className="stat-card">
-            <p className="metric-label">Uptime</p>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <p className="text-foreground font-mono text-sm">45d 12h 32m</p>
+          {error ? (
+            <div className="col-span-full text-center py-4">
+              <p className="text-destructive text-sm">Failed to load server info</p>
+              <p className="text-muted-foreground text-xs mt-1">{error.message}</p>
             </div>
-          </div>
-          <div className="stat-card">
-            <p className="metric-label">OS</p>
-            <p className="text-foreground text-sm">Ubuntu 22.04 LTS</p>
-          </div>
+          ) : isLoading ? (
+            <>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="stat-card">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="stat-card">
+                <p className="metric-label">Hostname</p>
+                <p className="text-foreground font-mono text-sm">
+                  {machineInfo?.hostname ?? 'N/A'}
+                </p>
+              </div>
+              <div className="stat-card">
+                <p className="metric-label">IP Address</p>
+                <p className="text-foreground font-mono text-sm">
+                  {machineInfo?.ipAddress ?? 'N/A'}
+                </p>
+              </div>
+              <div className="stat-card">
+                <p className="metric-label">Uptime</p>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-foreground font-mono text-sm">
+                    {machineInfo?.uptime ?? 'N/A'}
+                  </p>
+                </div>
+              </div>
+              <div className="stat-card">
+                <p className="metric-label">OS</p>
+                <p className="text-foreground text-sm">
+                  {machineInfo?.os ?? 'N/A'}
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
