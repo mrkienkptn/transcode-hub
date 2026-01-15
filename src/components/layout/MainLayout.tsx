@@ -4,6 +4,8 @@ import { TopTaskbar } from "./TopTaskbar";
 import { GeneralView } from "@/components/views/GeneralView";
 import { MonitorView } from "@/components/views/MonitorView";
 import { TranscoderView } from "@/components/views/TranscoderView";
+import { ChannelView } from '@/components/views/ChannelView'
+import { channel } from "diagnostics_channel";
 
 interface TabConfig {
   tabs: { id: string; label: string }[];
@@ -32,17 +34,23 @@ const tabConfigs: Record<string, TabConfig> = {
     tabs: [
       { id: "preset", label: "Preset" },
       { id: "profile", label: "Profile" },
-      { id: "channel", label: "Channel" },
     ],
     defaultTab: "preset",
     title: "Transcoder",
     path: "/transcoder",
   },
+  channel: {
+    tabs: [],
+    defaultTab: "",
+    title: "Channel",
+    path: "/channel"
+  }
 };
 
 function getActiveNavFromPath(pathname: string): string {
   if (pathname.startsWith("/monitor")) return "monitor";
   if (pathname.startsWith("/transcoder")) return "transcoder";
+  if (pathname.startsWith("/channel")) return "channel";
   return "general";
 }
 
@@ -78,6 +86,8 @@ export function MainLayout() {
         return <MonitorView activeTab={currentTab} />;
       case "transcoder":
         return <TranscoderView activeTab={currentTab} />;
+      case "channel":
+        return <ChannelView />;
       default:
         return null;
     }

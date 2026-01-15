@@ -22,6 +22,7 @@ const App = () => (
             <Route path="/monitor/:tab" element={<Index />} />
             <Route path="/transcoder" element={<Index />} />
             <Route path="/transcoder/:tab" element={<Index />} />
+            <Route path="/channel" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

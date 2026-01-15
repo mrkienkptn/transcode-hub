@@ -112,5 +112,5 @@ export interface MachineInfo {
 }
 
 export async function getMachineInfo(): Promise<ApiResponse<MachineInfo>> {
-  return fetchApi<MachineInfo>('/machine-info');
+  return fetchApi<MachineInfo>('/dump');
 }
