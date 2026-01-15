@@ -4,8 +4,7 @@ import { TopTaskbar } from "./TopTaskbar";
 import { GeneralView } from "@/components/views/GeneralView";
 import { MonitorView } from "@/components/views/MonitorView";
 import { TranscoderView } from "@/components/views/TranscoderView";
-import { ChannelView } from '@/components/views/ChannelView'
-import { channel } from "diagnostics_channel";
+import { ChannelView } from "@/components/views/ChannelView";
 
 interface TabConfig {
   tabs: { id: string; label: string }[];

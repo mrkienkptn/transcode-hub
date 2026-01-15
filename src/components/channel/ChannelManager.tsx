@@ -1,4 +1,4 @@
-import { Plus, Search, Play, Pause, Square, Settings2, Trash2, Radio } from "lucide-react";
+import { Plus, Search, Play, Pause, Square, Settings2, Trash2, Radio, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,15 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
 
 // TODO: Replace with actual API call
 const mockChannels = [
@@ -221,60 +212,66 @@ export function ChannelManager() {
 
       {/* Pagination */}
       {totalPages > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Show</span>
-            <Select value={String(recordsPerPage)} onValueChange={handleRecordsPerPageChange}>
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RECORDS_PER_PAGE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={String(option)}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span>per page</span>
-            <span className="ml-4">
-              Showing {startIndex + 1}-{Math.min(endIndex, totalRecords)} of {totalRecords}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="text-xs">Rows</span>
+              <Select value={String(recordsPerPage)} onValueChange={handleRecordsPerPageChange}>
+                <SelectTrigger className="w-16 h-8 text-xs bg-secondary/30 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RECORDS_PER_PAGE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="hidden sm:block h-4 w-px bg-border/50" />
+            <span className="text-xs">
+              {startIndex + 1}-{Math.min(endIndex, totalRecords)} of {totalRecords}
             </span>
           </div>
 
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => handlePageChange(validCurrentPage - 1)}
-                  className={validCurrentPage <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              
-              {getPageNumbers().map((page, index) => (
-                <PaginationItem key={index}>
-                  {page === "ellipsis" ? (
-                    <PaginationEllipsis />
-                  ) : (
-                    <PaginationLink
-                      onClick={() => handlePageChange(page)}
-                      isActive={page === validCurrentPage}
-                      className="cursor-pointer"
-                    >
-                      {page}
-                    </PaginationLink>
-                  )}
-                </PaginationItem>
-              ))}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => handlePageChange(validCurrentPage + 1)}
-                  className={validCurrentPage >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handlePageChange(validCurrentPage - 1)}
+              disabled={validCurrentPage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            {getPageNumbers().map((page, index) => (
+              page === "ellipsis" ? (
+                <span key={index} className="px-2 text-muted-foreground">...</span>
+              ) : (
+                <Button
+                  key={index}
+                  variant={page === validCurrentPage ? "secondary" : "ghost"}
+                  size="icon"
+                  className={`h-8 w-8 text-xs ${page === validCurrentPage ? "bg-primary/20 text-primary border border-primary/30" : ""}`}
+                  onClick={() => handlePageChange(page)}
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handlePageChange(validCurrentPage + 1)}
+              disabled={validCurrentPage >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
