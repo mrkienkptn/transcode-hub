@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:9998';
+const API_BASE_URL = 'http://192.168.3.239/transcoder';
 
 export interface ApiResponse<T> {
   data: T | null;
