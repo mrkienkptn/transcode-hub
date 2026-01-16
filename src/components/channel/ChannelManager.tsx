@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Plus, Search, Play, Pause, Square, Settings2, Trash2, Radio, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreateChannelModal } from "./CreateChannelModal";
 
 // TODO: Replace with actual API call
 const mockChannels = [
@@ -44,6 +46,7 @@ const RECORDS_PER_PAGE_OPTIONS = [5, 10, 20, 50];
 
 export function ChannelManager() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   
   // Get params from URL
   const nameFilter = searchParams.get("name") || "";
@@ -118,11 +121,13 @@ export function ChannelManager() {
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsCreateOpen(true)}>
           <Plus className="w-4 h-4" />
           New Channel
         </Button>
       </div>
+
+      <CreateChannelModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       {/* Channels Table */}
       <Card className="glass-card">
