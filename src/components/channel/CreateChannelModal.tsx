@@ -164,7 +164,7 @@ export function CreateChannelModal({
 
   const addTarget = () => {
     const newTarget: Target = {
-      id: crypto.randomUUID(),
+      id: Date.now().toString(),
       format: "RTMP",
       outputUri: defaultUriByFormat["RTMP"],
       selectedPresets: [],
