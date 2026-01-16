@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Plus, Search, Settings2, Trash2, Copy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { CreatePresetModal } from "./CreatePresetModal";
 
 const presets = [
   { id: 1, name: "H.264 1080p High", codec: "H.264", resolution: "1920x1080", bitrate: "8 Mbps", fps: 30, status: "active" },
@@ -13,6 +15,8 @@ const presets = [
 ];
 
 export function PresetManager() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -24,11 +28,14 @@ export function PresetManager() {
             className="pl-10 bg-secondary/50 border-border/50"
           />
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsCreateOpen(true)}>
           <Plus className="w-4 h-4" />
           New Preset
         </Button>
       </div>
+
+      {/* Create Preset Modal */}
+      <CreatePresetModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       {/* Presets Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
