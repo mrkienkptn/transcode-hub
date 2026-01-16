@@ -102,10 +102,6 @@ export function GeneralView() {
                 <p className="metric-label">Timezone</p>
                 <p className="metric-value text-sm">{machineInfo?.timezone ?? 'N/A'}</p>
               </div>
-              <div className="stat-card">
-                <p className="metric-label">Port</p>
-                <p className="metric-value font-mono">{machineInfo?.port ?? 'N/A'}</p>
-              </div>
             </div>
           )}
         </CardContent>
@@ -283,70 +279,6 @@ export function GeneralView() {
                 <p className="font-mono text-primary">{net.ip}</p>
               </div>
             )) ?? <p className="text-muted-foreground text-sm">No network interfaces</p>}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Storage */}
-      <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <HardDrive className="w-4 h-4 text-primary" />
-            Storage
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-2">
-            {machineInfo?.system?.storage?.map((storage, idx) => (
-              <div key={idx} className="stat-card">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="font-medium text-foreground">{storage.name}</p>
-                  <Badge variant="outline" className="text-xs">{storage.expire}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground font-mono truncate">
-                  {storage.folder.join(', ')}
-                </p>
-              </div>
-            )) ?? <p className="text-muted-foreground text-sm">No storage info</p>}
-          </div>
-          {machineInfo?.system?.log && (
-            <div className="mt-4 stat-card">
-              <div className="flex justify-between items-center">
-                <p className="metric-label">Log Folder</p>
-                <p className="text-sm text-muted-foreground">{machineInfo.system.log.used} MB used</p>
-              </div>
-              <p className="text-xs text-muted-foreground font-mono mt-1">{machineInfo.system.log.folder}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Applications */}
-      <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Box className="w-4 h-4 text-primary" />
-            Applications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {machineInfo?.apps?.map((app, idx) => (
-              <div key={idx} className="stat-card">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="font-medium text-foreground">{app.name}</p>
-                  <Badge variant={app.state === 'running' ? 'default' : 'destructive'}>
-                    {app.state}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  {app.life && <span>Uptime: {app.life}</span>}
-                  <span>PID: {app.process.pid}</span>
-                  <span>CPU: {app.process.cpu}</span>
-                  <span>RAM: {app.process.ram}</span>
-                </div>
-              </div>
-            )) ?? <p className="text-muted-foreground text-sm">No applications</p>}
           </div>
         </CardContent>
       </Card>
