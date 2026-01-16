@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Plus, Search, Settings2, Trash2, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
+import { CreateProfileModal } from "./CreateProfileModal";
 const profiles = [
   { 
     id: 1, 
@@ -40,6 +41,8 @@ const profiles = [
 ];
 
 export function ProfileManager() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -51,7 +54,7 @@ export function ProfileManager() {
             className="pl-10 bg-secondary/50 border-border/50"
           />
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsCreateOpen(true)}>
           <Plus className="w-4 h-4" />
           New Profile
         </Button>
@@ -108,6 +111,8 @@ export function ProfileManager() {
           </Card>
         ))}
       </div>
+
+      <CreateProfileModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
     </div>
   );
 }
