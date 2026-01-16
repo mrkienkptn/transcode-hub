@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CreateProfileModalProps {
@@ -132,20 +131,20 @@ export function CreateProfileModal({ open, onOpenChange }: CreateProfileModalPro
                         }`}
                       onClick={() => handlePresetToggle(preset.id)}
                     >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => handlePresetToggle(preset.id)}
-                        className="pointer-events-none"
-                      />
+                      <div className={`h-4 w-4 rounded border flex items-center justify-center
+                        ${isSelected 
+                          ? "bg-primary border-primary" 
+                          : "border-muted-foreground"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
                       <div className="flex-1">
                         <div className="font-medium text-sm">{preset.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {preset.codec} • {preset.resolution}
                         </div>
                       </div>
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-primary" />
-                      )}
                     </div>
                   );
                 })}
