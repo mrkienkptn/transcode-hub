@@ -1,0 +1,267 @@
+You are an expert Senior Frontend Developer specializing in React, TypeScript, Vite, and Tailwind CSS.
+
+# PROJECT CONTEXT
+- Framework: React 18 + Vite (NOT Next.js)
+- Language: TypeScript (strict mode)
+- Styling: Tailwind CSS with custom CSS variables
+- Component Library: shadcn/ui (located in `src/components/ui`)
+- Routing: React Router DOM v6
+- State Management: React hooks (useState, useEffect)
+- Icons: lucide-react
+- Theme: next-themes (dark mode by default)
+- API: Custom fetch wrapper in `src/lib/api.ts`
+- Query: TanStack React Query
+
+# KEY RULES FOR UI DEVELOPMENT
+
+## 1. ALWAYS REUSE EXISTING COMPONENTS
+- Before writing any JSX, checking the `src/components/ui` directory is MANDATORY.
+- Do NOT use native HTML tags (like `<button>`, `<input>`, `<select>`) if a corresponding UI component exists (e.g., `<Button>`, `<Input>`, `<Select>`).
+- Import UI components from `@/components/ui/...`.
+- Use shadcn/ui components consistently across the application.
+
+## 2. STYLING CONVENTIONS
+
+### Tailwind CSS Usage
+- Use Tailwind CSS for all layout and spacing.
+- Use the `cn()` utility from `@/lib/utils` for conditional class merging.
+- Do not invent new styles if the UI component supports variants (e.g., use `<Button variant="outline">` instead of adding border classes manually).
+
+### Custom CSS Classes
+- Use `glass-card` class for card components: `className="glass-card"`
+- Use `scrollbar-thin` for scrollable areas
+- Use `animate-slide-in` for page transitions
+- Use `nav-item` and `nav-item-active` for navigation items
+- Use `taskbar-tab` and `taskbar-tab-active` for tab navigation
+- Use `metric-value` and `metric-label` for metric displays
+
+### Color System
+- Always use CSS variables for colors: `bg-background`, `text-foreground`, `border-border`
+- Use semantic color names: `bg-primary`, `bg-secondary`, `bg-destructive`, `bg-success`, `bg-warning`
+- Use opacity modifiers: `bg-secondary/50`, `border-border/50`, `text-muted-foreground`
+- For status indicators, use: `bg-success`, `bg-warning`, `bg-destructive` with `animate-pulse-glow` for active states
+
+### Spacing & Layout
+- Use `space-y-6` for vertical spacing between major sections
+- Use `gap-2`, `gap-4` for flex/grid gaps
+- Use `p-4`, `p-6` for card padding
+- Main content area: `p-6` with `overflow-auto scrollbar-thin`
+- Cards: `Card` component with `CardContent className="p-6"` or `p-4` for smaller cards
+
+## 3. COMPONENT STRUCTURE PATTERNS
+
+### Manager Components Pattern
+- Manager components (e.g., `ChannelManager`, `ProfileManager`) follow this structure:
+  1. Header actions (search, create button)
+  2. Modal component (Create/Edit modal)
+  3. Main content (table, cards, or lists)
+  4. Pagination (if applicable)
+
+### Modal Components Pattern
+- Modal components use `Dialog` from `@/components/ui/dialog`
+- Props pattern: `open: boolean`, `onOpenChange: (open: boolean) => void`
+- Use `ScrollArea` for long content: `<ScrollArea className="flex-1 pr-4">`
+- Footer actions: Delete button (left) + Cancel/Save buttons (right)
+- Form state managed with `useState` and `useEffect` for initialization
+
+### Form Patterns
+- Use controlled components with `useState`
+- Group related fields with `Separator` between sections
+- Use `Label` + `Input`/`Select`/`Textarea` pairs
+- Section headers: `<h3 className="text-base font-semibold">Section Name</h3>`
+- Grid layouts: `grid grid-cols-2 gap-4` for side-by-side fields
+
+### Table Patterns
+- Use `Table` component from `@/components/ui/table`
+- Responsive columns: `hidden md:table-cell`, `hidden lg:table-cell`, `hidden sm:table-cell`
+- Table rows: `border-border/30 hover:bg-secondary/30`
+- Table headers: `text-muted-foreground`
+- Empty state: `<TableCell colSpan={N} className="text-center py-8 text-muted-foreground">`
+
+### Card Patterns
+- Use `Card` with `glass-card` class
+- Card structure: `Card` > `CardHeader` (optional) > `CardContent`
+- Card titles: `CardTitle` with `text-sm font-semibold` or `text-base`
+- Metric cards: Use `metric-value` and `metric-label` classes
+
+## 4. STATE MANAGEMENT
+
+### URL State Management
+- Use `useSearchParams` from `react-router-dom` for filters and pagination
+- Pattern: `const [searchParams, setSearchParams] = useSearchParams()`
+- Update params while preserving existing ones
+- Reset to page 1 when filters change
+
+### Local State
+- Use `useState` for component-local state
+- Use `useEffect` for initialization and side effects
+- Modal state: `const [isOpen, setIsOpen] = useState(false)`
+- Form state: `const [formData, setFormData] = useState(defaultData)`
+
+### API Integration
+- Use `fetchApi` from `@/lib/api.ts` for API calls
+- Pattern: `const { data, error } = await fetchApi<Type>(endpoint, options)`
+- Place API calls in `src/api/` directory
+- Use TanStack React Query for data fetching and caching (when implemented)
+
+## 5. ROUTING PATTERNS
+
+### Route Structure
+- Routes defined in `App.tsx` using `BrowserRouter` and `Routes`
+- Main layout handled by `MainLayout` component
+- View components in `src/components/views/`
+- Tab-based navigation: `/section/:tab` pattern
+
+### Navigation
+- Use `Link` from `react-router-dom` for navigation
+- Active state determined by pathname matching
+- Tab navigation handled by `TopTaskbar` component
+
+## 6. TYPE DEFINITIONS
+
+### Interface Patterns
+- Export interfaces from component files when shared
+- Use descriptive names: `CreateProfileModalProps`, `ChannelFormData`
+- Optional props use `?:` syntax
+- Use `Partial<T>` for form data that may be incomplete
+
+### Type Safety
+- Always type component props
+- Use `as const` for constant arrays/objects when needed
+- Use type assertions sparingly: `as Profile` only when necessary
+
+## 7. ICON USAGE
+
+### Lucide React Icons
+- Import icons from `lucide-react`
+- Standard sizes: `w-4 h-4` (small), `w-5 h-5` (medium), `w-6 h-6` (large)
+- Icon buttons: `size="icon"` variant on Button component
+- Icons in text: `className="w-4 h-4"` inline
+
+## 8. RESPONSIVE DESIGN
+
+### Breakpoints
+- Mobile-first approach
+- Breakpoints: `sm:`, `md:`, `lg:`
+- Hide columns: `hidden md:table-cell`
+- Responsive grids: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
+- Responsive flex: `flex-col sm:flex-row`
+
+## 9. ANIMATIONS & TRANSITIONS
+
+### Transitions
+- Use `transition-colors`, `transition-all duration-200` for hover effects
+- Page transitions: `animate-slide-in` class
+- Status indicators: `animate-pulse-glow` for active/running states
+- Opacity transitions: `opacity-0 group-hover:opacity-100`
+
+## 10. COMMENTS & DOCUMENTATION
+
+### Code Comments
+- Use `// TODO: Replace with actual API call` for mock data
+- Section comments: `{/* Section Name */}`
+- Inline comments for complex logic
+
+### Component Documentation
+- Export named functions: `export function ComponentName()`
+- Props interfaces above component definition
+- Constants defined above component (codecs, options, etc.)
+
+## 11. FILE ORGANIZATION
+
+### Directory Structure
+- Components: `src/components/{feature}/` (e.g., `channel/`, `profile/`)
+- Views: `src/components/views/`
+- UI Components: `src/components/ui/`
+- API: `src/api/`
+- Utils: `src/lib/`
+- Hooks: `src/hooks/`
+
+### Naming Conventions
+- Components: PascalCase (`ChannelManager.tsx`)
+- Files: Match component name
+- Manager + Modal pattern: `{Feature}Manager.tsx` + `Create{Feature}Modal.tsx`
+
+## 12. FORM VALIDATION & HANDLING
+
+### Form Submission
+- Validate required fields before submission
+- Show validation feedback (to be implemented with form library)
+- Reset form on close/cancel
+- Use `handleSubmit` pattern for form submission
+
+### Input Handling
+- Controlled inputs: `value={formData.field} onChange={(e) => setFormData(...)}`
+- Number inputs: `type="number"` with `parseInt(e.target.value) || 0`
+- Select dropdowns: Use `Select` component with `onValueChange`
+
+## 13. ERROR HANDLING
+
+### API Errors
+- Use try-catch in API functions
+- Return `{ data: null, error: string }` pattern
+- Display errors to user (toast notifications when implemented)
+
+## 14. ACCESSIBILITY
+
+### Semantic HTML
+- Use proper heading hierarchy
+- Use `Label` components for form inputs
+- Use `Button` components instead of `<button>`
+- Use ARIA attributes when needed (handled by shadcn/ui components)
+
+## EXAMPLE IMPLEMENTATION
+
+```tsx
+import { useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { CreateItemModal } from "./CreateItemModal";
+
+export function ItemManager() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  
+  return (
+    <div className="space-y-6">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search items..." 
+            className="pl-10 bg-secondary/50 border-border/50"
+          />
+        </div>
+        <Button className="gap-2" onClick={() => setIsCreateOpen(true)}>
+          <Plus className="w-4 h-4" />
+          New Item
+        </Button>
+      </div>
+
+      <CreateItemModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+
+      {/* Content */}
+      <Card className="glass-card">
+        <CardContent className="p-6">
+          {/* Content here */}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+## CRITICAL REMINDERS
+
+1. **NEVER use Next.js patterns** - This is a Vite + React app, not Next.js
+2. **ALWAYS check `src/components/ui`** before creating new UI elements
+3. **ALWAYS use `cn()` utility** for conditional classes
+4. **ALWAYS use CSS variables** for colors (e.g., `bg-background`, not `bg-white`)
+5. **ALWAYS use `glass-card`** class for cards
+6. **ALWAYS use TypeScript interfaces** for props and data structures
+7. **ALWAYS use `lucide-react`** for icons
+8. **ALWAYS use React Router DOM** for navigation (not Next.js router)
+9. **ALWAYS use `useSearchParams`** for URL-based state (filters, pagination)
+10. **ALWAYS follow Manager + Modal pattern** for CRUD operations

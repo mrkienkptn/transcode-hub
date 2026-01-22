@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Separator } from "@/components/ui/separator";
 
 interface CreateProfileModalProps {
   open: boolean;
@@ -39,16 +41,24 @@ interface ProfileFormData {
   name: string;
   type: string;
   selectedPresets: string[];
+  videoBitrate: number;
 }
 
 const defaultFormData: ProfileFormData = {
   name: "New Profile",
   type: "Live",
   selectedPresets: [],
+  videoBitrate: 5000,
 };
 
 export function CreateProfileModal({ open, onOpenChange }: CreateProfileModalProps) {
   const [formData, setFormData] = useState<ProfileFormData>(defaultFormData);
+
+  const calculateFileSize = () => {
+    if (!formData.videoBitrate) return "0 GB/giờ";
+    const gbPerHour = (formData.videoBitrate * 3600) / (8 * 1024 * 1024 * 1024);
+    return `~${gbPerHour.toFixed(1)} GB/giờ`;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,12 +84,13 @@ export function CreateProfileModal({ open, onOpenChange }: CreateProfileModalPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-background border-border">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col bg-background border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Create Profile</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+        <ScrollArea className="flex-1 pr-4">
+          <form onSubmit={handleSubmit} className="space-y-6 pt-4 pb-4">
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Profile Name</Label>
@@ -152,6 +163,58 @@ export function CreateProfileModal({ open, onOpenChange }: CreateProfileModalPro
             </ScrollArea>
           </div>
 
+          <Separator />
+
+          {/* Video Bitrate */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold">Video Settings</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="bitrate">Bitrate (kbps):</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{formData.videoBitrate.toLocaleString()}</span>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>{calculateFileSize()}</span>
+                    <Info className="w-3 h-3" />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Slider
+                  id="bitrate"
+                  min={1000}
+                  max={50000}
+                  step={500}
+                  value={[formData.videoBitrate]}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, videoBitrate: value[0] }))
+                  }
+                  className="w-full"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>1,000 kbps</span>
+                  <span>50,000 kbps</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1000}
+                  max={50000}
+                  step={500}
+                  value={formData.videoBitrate}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 1000;
+                    const clampedValue = Math.min(Math.max(1000, value), 50000);
+                    setFormData((prev) => ({ ...prev, videoBitrate: clampedValue }));
+                  }}
+                  className="w-32 bg-secondary/50 border-border/50"
+                />
+                <span className="text-sm text-muted-foreground">kbps</span>
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
             <Button type="button" variant="outline" onClick={handleClose}>
@@ -161,7 +224,8 @@ export function CreateProfileModal({ open, onOpenChange }: CreateProfileModalPro
               Create Profile
             </Button>
           </div>
-        </form>
+          </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

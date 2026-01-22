@@ -9,7 +9,8 @@ import {
   User,
   Moon,
   Sun,
-  Radio
+  Radio,
+  Layers
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { id: "monitor", label: "Monitor", icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "machine" },
   { id: "transcoder", label: "Transcoder", icon: <Video className="w-5 h-5" />, path: "/transcoder", defaultTab: "preset" },
   { id: "channel", label: "Channel", icon: <Radio className="w-5 h-5" />, path: "/channel"},
+  { id: "profiles", label: "Profiles", icon: <Layers className="w-5 h-5" />, path: "/profiles"},
 ];
 
 export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
