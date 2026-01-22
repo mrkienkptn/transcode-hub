@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Check, Eye, EyeOff, Copy } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -29,9 +31,10 @@ interface CreateChannelModalProps {
 // Mock data - replace with actual data
 const mockInputs = [
   { id: "1", name: "RTMP", uri: "rtmp://input.stream/live" },
-  { id: "2", name: "SRT", uri: "srt://192.168.1.50:9000" },
-  { id: "3", name: "UDP Multicast", uri: "udp://239.0.0.1:5000" },
-  { id: "4", name: "File Input", uri: "file:///media/content.mp4" },
+  { id: "2", name: "RTMP Push", uri: "rtmp://input.stream/live" },
+  { id: "3", name: "SRT", uri: "srt://192.168.1.50:9000" },
+  { id: "4", name: "UDP Multicast", uri: "udp://239.0.0.1:5000" },
+  { id: "5", name: "File Input", uri: "file:///media/content.mp4" },
 ];
 
 const mockProfiles = [
@@ -106,8 +109,10 @@ interface ChannelFormData {
   name: string;
   mainInputId: string;
   mainInputUri: string;
+  mainInputKey: string;
   backupInputId: string;
   backupInputUri: string;
+  backupInputKey: string;
   profileId: string;
   targets: Target[];
 }
@@ -116,32 +121,100 @@ const defaultFormData: ChannelFormData = {
   name: "New Channel",
   mainInputId: mockInputs[0]?.id,
   mainInputUri: mockInputs[0]?.uri,
+  mainInputKey: "",
   backupInputId: mockInputs[0]?.id,
   backupInputUri: mockInputs[0]?.uri,
+  backupInputKey: "",
   profileId: mockProfiles[0]?.id,
   targets: [],
+};
+
+// Generate a random stream key
+const generateStreamKey = (): string => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let key = "";
+  for (let i = 0; i < 32; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return key;
+};
+
+// Generate channel ID from channel name
+const generateChannelId = (channelName: string): string => {
+  // Convert channel name to lowercase, replace spaces with hyphens, remove special chars
+  const slug = channelName
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .substring(0, 20);
+  // Add random suffix for uniqueness
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  return `${slug}-${randomSuffix}`;
+};
+
+// Generate RTMP Push URI
+const generateRtmpPushUri = (channelName: string, ip: string = "192.168.1.10"): string => {
+  const channelId = generateChannelId(channelName);
+  return `rtmp://${ip}:1935/${channelId}`;
 };
 
 export function CreateChannelModal({
   open,
   onOpenChange,
 }: CreateChannelModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<ChannelFormData>(defaultFormData);
+  const [showMainKey, setShowMainKey] = useState(false);
 
   const selectedProfile = mockProfiles.find((p) => p.id === formData.profileId);
+  const isRtmpPush = mockInputs.find((i) => i.id === formData.mainInputId)?.name === "RTMP Push";
 
   const handleClose = () => {
     setFormData(defaultFormData);
+    setShowMainKey(false);
     onOpenChange(false);
   };
 
   const handleMainInputSelect = (inputId: string) => {
     const input = mockInputs.find((i) => i.id === inputId);
+    const isRtmpPushSelected = input?.name === "RTMP Push";
     setFormData((prev) => ({
       ...prev,
       mainInputId: inputId,
-      mainInputUri: input?.uri,
+      mainInputUri: isRtmpPushSelected 
+        ? generateRtmpPushUri(prev.name) 
+        : (input?.uri || ""),
+      mainInputKey: isRtmpPushSelected ? generateStreamKey() : "", // Auto-generate key for RTMP Push
     }));
+    setShowMainKey(false); // Reset visibility when input changes
+  };
+
+  // Update URI when channel name changes and RTMP Push is selected
+  useEffect(() => {
+    if (isRtmpPush && formData.name) {
+      setFormData((prev) => ({
+        ...prev,
+        mainInputUri: generateRtmpPushUri(prev.name),
+      }));
+    }
+  }, [formData.name, isRtmpPush]);
+
+  const handleCopyUri = async () => {
+    try {
+      await navigator.clipboard.writeText(formData.mainInputUri);
+      toast.success("URI copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy URI");
+    }
+  };
+
+  const handleCopyKey = async () => {
+    try {
+      await navigator.clipboard.writeText(formData.mainInputKey);
+      toast.success("Stream key copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy stream key");
+    }
   };
 
   const handleBackupInputSelect = (inputId: string) => {
@@ -150,6 +223,7 @@ export function CreateChannelModal({
       ...prev,
       backupInputId: inputId,
       backupInputUri: input?.uri,
+      backupInputKey: "", // Reset key when input changes
     }));
   };
 
@@ -223,21 +297,21 @@ export function CreateChannelModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Create New Channel</DialogTitle>
+          <DialogTitle>{t("channel.createNew")}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="h-[800px] pr-4">
           <div className="space-y-6 pb-4">
             {/* Channel Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Channel Name</Label>
+              <Label htmlFor="name">{t("channel.channelName")}</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
-                placeholder="Enter channel name"
+                placeholder={t("channel.channelNamePlaceholder")}
               />
             </div>
 
@@ -245,12 +319,12 @@ export function CreateChannelModal({
 
             {/* Input Section */}
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Input</Label>
+              <Label className="text-base font-semibold">{t("channel.inputSection")}</Label>
 
               {/* Main Input */}
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">
-                  Main URI
+                  {t("channel.mainUri")}
                 </Label>
                 <div className="flex gap-2">
                   <Select
@@ -258,7 +332,7 @@ export function CreateChannelModal({
                     onValueChange={handleMainInputSelect}
                   >
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select input" />
+                      <SelectValue placeholder={t("channel.selectInput")} />
                     </SelectTrigger>
                     <SelectContent>
                       {mockInputs.map((input) => (
@@ -269,17 +343,75 @@ export function CreateChannelModal({
                     </SelectContent>
                   </Select>
                   <Input
-                    className="flex-1"
+                    className="flex-1 font-mono text-xs"
                     value={formData.mainInputUri}
                     onChange={(e) =>
+                      !isRtmpPush &&
                       setFormData((prev) => ({
                         ...prev,
                         mainInputUri: e.target.value,
                       }))
                     }
-                    placeholder="Input URI"
+                    placeholder={t("channel.inputUri")}
+                    readOnly={isRtmpPush}
                   />
+                  {isRtmpPush && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyUri}
+                      className="h-10 w-10"
+                      type="button"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
+                {/* Key field for RTMP Push */}
+                {isRtmpPush && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">
+                      Stream Key
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={formData.mainInputKey}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            mainInputKey: e.target.value,
+                          }))
+                        }
+                        placeholder="Stream key will be auto-generated"
+                        type={showMainKey ? "text" : "password"}
+                        readOnly
+                        className="flex-1 font-mono text-xs"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowMainKey(!showMainKey)}
+                        className="h-10 w-10"
+                        type="button"
+                      >
+                        {showMainKey ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleCopyKey}
+                        className="h-10 w-10"
+                        type="button"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -287,7 +419,7 @@ export function CreateChannelModal({
 
             {/* Profile Selection */}
             <div className="space-y-2">
-              <Label>Profile</Label>
+              <Label>{t("channel.profileSection")}</Label>
               <ScrollArea>
                 <div className="p-3 space-y-2">
                   {mockProfiles.map((profile) => {
@@ -345,7 +477,7 @@ export function CreateChannelModal({
             {/* Targets Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Targets</Label>
+                <Label className="text-base font-semibold">{t("channel.targets")}</Label>
                 <Button
                   variant="outline"
                   size="sm"
@@ -353,13 +485,13 @@ export function CreateChannelModal({
                   className="gap-1"
                 >
                   <Plus className="w-3 h-3" />
-                  Add Target
+                  {t("channel.addTarget")}
                 </Button>
               </div>
 
               {formData.targets.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
-                  No targets added. Click "Add Target" to create one.
+                  {t("channel.noTargets")}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -370,7 +502,7 @@ export function CreateChannelModal({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">
-                          Target {index + 1}
+                          {t("channel.target")} {index + 1}
                         </span>
                         <Button
                           variant="ghost"
@@ -409,7 +541,7 @@ export function CreateChannelModal({
                               outputUri: e.target.value,
                             })
                           }
-                          placeholder="Output URI"
+                          placeholder={t("channel.outputUri")}
                         />
                       </div>
 
@@ -418,7 +550,7 @@ export function CreateChannelModal({
                         selectedProfile.presets.length > 0 && (
                           <div className="space-y-2">
                             <Label className="text-xs text-muted-foreground">
-                              Presets
+                              {t("channel.presets")}
                             </Label>
                             <div className="flex flex-wrap gap-2">
                               {selectedProfile.presets.map((preset) => {
@@ -460,9 +592,9 @@ export function CreateChannelModal({
 
         <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>Create Channel</Button>
+          <Button onClick={handleSubmit}>{t("channel.createChannel")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

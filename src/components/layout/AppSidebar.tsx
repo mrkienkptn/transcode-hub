@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -21,6 +22,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface NavItem {
   id: string;
@@ -35,18 +37,19 @@ interface AppSidebarProps {
   onNavChange: (id: string) => void;
 }
 
-const navItems: NavItem[] = [
-  { id: "general", label: "General", icon: <Info className="w-5 h-5" />, path: "/" },
-  { id: "monitor", label: "Monitor", icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "machine" },
-  { id: "transcoder", label: "Transcoder", icon: <Video className="w-5 h-5" />, path: "/transcoder", defaultTab: "preset" },
-  { id: "channel", label: "Channel", icon: <Radio className="w-5 h-5" />, path: "/channel"},
-  { id: "profiles", label: "Profiles", icon: <Layers className="w-5 h-5" />, path: "/profiles"},
-];
-
 export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  const navItems: NavItem[] = [
+    { id: "general", label: t("navigation.general"), icon: <Info className="w-5 h-5" />, path: "/" },
+    { id: "monitor", label: t("navigation.monitor"), icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "machine" },
+    { id: "transcoder", label: t("navigation.transcoder"), icon: <Video className="w-5 h-5" />, path: "/transcoder", defaultTab: "preset" },
+    { id: "channel", label: t("navigation.channel"), icon: <Radio className="w-5 h-5" />, path: "/channel"},
+    { id: "profiles", label: t("navigation.profiles"), icon: <Layers className="w-5 h-5" />, path: "/profiles"},
+  ];
   
   useEffect(() => {
     setMounted(true);
@@ -68,7 +71,7 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
             <Video className="w-5 h-5 text-primary" />
           </div>
           {!collapsed && (
-            <span className="font-semibold text-foreground">Transcoder</span>
+            <span className="font-semibold text-foreground">{t("common.appName")}</span>
           )}
         </div>
       </div>
@@ -117,8 +120,8 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-medium text-foreground truncate">Admin</p>
-                  <p className="text-xs text-muted-foreground truncate">admin@transcoder.io</p>
+                  <p className="text-sm font-medium text-foreground truncate">{t("common.admin")}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t("common.adminEmail")}</p>
                 </div>
               )}
             </button>
@@ -132,8 +135,13 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
               {/* Settings */}
               <button className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-secondary transition-colors text-foreground">
                 <Settings className="w-4 h-4" />
-                <span>Settings</span>
+                <span>{t("common.settings")}</span>
               </button>
+
+              {/* Language Switcher */}
+              <div className="px-3 py-2">
+                <LanguageSwitcher />
+              </div>
 
               {/* Theme Toggle */}
               <div className="flex items-center justify-between px-3 py-2">
@@ -143,7 +151,7 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
                   ) : (
                     <Sun className="w-4 h-4 text-foreground" />
                   )}
-                  <span className="text-sm text-foreground">Dark Mode</span>
+                  <span className="text-sm text-foreground">{t("common.darkMode")}</span>
                 </div>
                 <Switch
                   checked={isDark}

@@ -23,6 +23,7 @@ const App = () => (
             <Route path="/transcoder" element={<Index />} />
             <Route path="/transcoder/:tab" element={<Index />} />
             <Route path="/channel" element={<Index />} />
+            <Route path="/channel/:id" element={<Index />} />
             <Route path="/channel/*" element={<Index />} />
             <Route path="/profiles" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

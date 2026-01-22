@@ -1,4 +1,5 @@
 import { Info, Key, Server, Clock, RefreshCw, Cpu, HardDrive, Network, Activity, Box } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMachineInfo } from "@/hooks/useMachineInfo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,7 @@ function formatUptime(startDate: string | undefined): string {
 }
 
 export function GeneralView() {
+  const { t } = useTranslation();
   const { data: machineInfo, isLoading, error, refetch, isFetching } = useMachineInfo();
 
   const ramUsagePercent = machineInfo?.system 
@@ -41,7 +43,7 @@ export function GeneralView() {
           <CardTitle className="flex items-center justify-between text-base">
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 text-primary" />
-              Application Info
+              {t("general.applicationInfo")}
             </div>
             <Button
               variant="ghost"
@@ -57,7 +59,7 @@ export function GeneralView() {
         <CardContent>
           {error ? (
             <div className="text-center py-4">
-              <p className="text-destructive text-sm">Failed to load server info</p>
+              <p className="text-destructive text-sm">{t("general.failedToLoad")}</p>
               <p className="text-muted-foreground text-xs mt-1">{error.message}</p>
             </div>
           ) : isLoading ? (
@@ -72,34 +74,34 @@ export function GeneralView() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="stat-card">
-                <p className="metric-label">Name</p>
+                <p className="metric-label">{t("general.name")}</p>
                 <p className="metric-value">{machineInfo?.name ?? 'N/A'}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Version</p>
+                <p className="metric-label">{t("general.version")}</p>
                 <p className="metric-value">{machineInfo?.version ?? 'N/A'}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Branch</p>
+                <p className="metric-label">{t("general.branch")}</p>
                 <Badge variant="secondary">{machineInfo?.branch ?? 'N/A'}</Badge>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Build</p>
+                <p className="metric-label">{t("general.build")}</p>
                 <p className="metric-value font-mono text-sm">{formatDate(machineInfo?.build)}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Start Time</p>
+                <p className="metric-label">{t("general.startTime")}</p>
                 <p className="metric-value font-mono text-sm">{formatDate(machineInfo?.start)}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Uptime</p>
+                <p className="metric-label">{t("general.uptime")}</p>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <p className="metric-value">{formatUptime(machineInfo?.start)}</p>
                 </div>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Timezone</p>
+                <p className="metric-label">{t("general.timezone")}</p>
                 <p className="metric-value text-sm">{machineInfo?.timezone ?? 'N/A'}</p>
               </div>
             </div>
@@ -229,30 +231,30 @@ export function GeneralView() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="stat-card">
-              <p className="metric-label">CPU Usage</p>
-              <p className="metric-value">{machineInfo?.system?.cpu ?? 0}%</p>
+              <p className="metric-label">{t("general.cpuUsage")}</p>
+              <p className="metric-value">{machineInfo?.system?.cpu ?? 0}{t("general.percent")}</p>
             </div>
             <div className="stat-card">
-              <p className="metric-label">Heap Used</p>
-              <p className="metric-value font-mono">{machineInfo?.system?.heapUsed ?? 0} MB</p>
+              <p className="metric-label">{t("general.heapUsed")}</p>
+              <p className="metric-value font-mono">{machineInfo?.system?.heapUsed ?? 0} {t("general.mb")}</p>
             </div>
             <div className="stat-card">
-              <p className="metric-label">Heap Max</p>
-              <p className="metric-value font-mono">{machineInfo?.system?.heapMax ?? 0} MB</p>
+              <p className="metric-label">{t("general.heapMax")}</p>
+              <p className="metric-value font-mono">{machineInfo?.system?.heapMax ?? 0} {t("general.mb")}</p>
             </div>
           </div>
           {machineInfo?.system?.process && (
             <div className="grid gap-4 md:grid-cols-3">
               <div className="stat-card">
-                <p className="metric-label">Process PID</p>
+                <p className="metric-label">{t("general.processPid")}</p>
                 <p className="metric-value font-mono">{machineInfo.system.process.pid}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Process CPU</p>
+                <p className="metric-label">{t("general.processCpu")}</p>
                 <p className="metric-value">{machineInfo.system.process.cpu}</p>
               </div>
               <div className="stat-card">
-                <p className="metric-label">Process RAM</p>
+                <p className="metric-label">{t("general.processRam")}</p>
                 <p className="metric-value">{machineInfo.system.process.ram}</p>
               </div>
             </div>
@@ -265,7 +267,7 @@ export function GeneralView() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Network className="w-4 h-4 text-primary" />
-            Network Interfaces
+            {t("general.networkInterfaces")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -278,7 +280,7 @@ export function GeneralView() {
                 </div>
                 <p className="font-mono text-primary">{net.ip}</p>
               </div>
-            )) ?? <p className="text-muted-foreground text-sm">No network interfaces</p>}
+            )) ?? <p className="text-muted-foreground text-sm">{t("general.noNetworkInterfaces")}</p>}
           </div>
         </CardContent>
       </Card>

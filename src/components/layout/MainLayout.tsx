@@ -1,4 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AppSidebar } from "./AppSidebar";
 import { TopTaskbar } from "./TopTaskbar";
 import { GeneralView } from "@/components/views/GeneralView";
@@ -14,45 +15,6 @@ interface TabConfig {
   path: string;
 }
 
-const tabConfigs: Record<string, TabConfig> = {
-  general: {
-    tabs: [],
-    defaultTab: "",
-    title: "General",
-    path: "/",
-  },
-  monitor: {
-    tabs: [
-      { id: "machine", label: "Machine" },
-      { id: "channels", label: "Transcode Channels" },
-    ],
-    defaultTab: "machine",
-    title: "Monitor",
-    path: "/monitor",
-  },
-  transcoder: {
-    tabs: [
-      { id: "preset", label: "Preset" },
-      { id: "profile", label: "Profile" },
-    ],
-    defaultTab: "preset",
-    title: "Transcoder",
-    path: "/transcoder",
-  },
-  channel: {
-    tabs: [],
-    defaultTab: "",
-    title: "Channel",
-    path: "/channel"
-  },
-  profiles: {
-    tabs: [],
-    defaultTab: "",
-    title: "Profiles",
-    path: "/profiles"
-  }
-};
-
 function getActiveNavFromPath(pathname: string): string {
   if (pathname.startsWith("/monitor")) return "monitor";
   if (pathname.startsWith("/transcoder")) return "transcoder";
@@ -62,9 +24,49 @@ function getActiveNavFromPath(pathname: string): string {
 }
 
 export function MainLayout() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
+
+  const tabConfigs: Record<string, TabConfig> = {
+    general: {
+      tabs: [],
+      defaultTab: "",
+      title: t("navigation.general"),
+      path: "/",
+    },
+    monitor: {
+      tabs: [
+        { id: "machine", label: t("tabs.machine") },
+        { id: "channels", label: t("tabs.channels") },
+      ],
+      defaultTab: "machine",
+      title: t("navigation.monitor"),
+      path: "/monitor",
+    },
+    transcoder: {
+      tabs: [
+        { id: "preset", label: t("tabs.preset") },
+        { id: "profile", label: t("tabs.profile") },
+      ],
+      defaultTab: "preset",
+      title: t("navigation.transcoder"),
+      path: "/transcoder",
+    },
+    channel: {
+      tabs: [],
+      defaultTab: "",
+      title: t("navigation.channel"),
+      path: "/channel"
+    },
+    profiles: {
+      tabs: [],
+      defaultTab: "",
+      title: t("navigation.profiles"),
+      path: "/profiles"
+    }
+  };
 
   const activeNav = getActiveNavFromPath(location.pathname);
   const currentConfig = tabConfigs[activeNav];
