@@ -2,9 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppSidebar } from "./AppSidebar";
 import { TopTaskbar } from "./TopTaskbar";
-import { GeneralView } from "@/components/views/GeneralView";
 import { MonitorView } from "@/components/views/MonitorView";
-import { TranscoderView } from "@/components/views/TranscoderView";
 import { ChannelView } from "@/components/views/ChannelView";
 import { ProfileView } from "@/components/views/ProfileView";
 
@@ -17,10 +15,11 @@ interface TabConfig {
 
 function getActiveNavFromPath(pathname: string): string {
   if (pathname.startsWith("/monitor")) return "monitor";
-  if (pathname.startsWith("/transcoder")) return "transcoder";
-  if (pathname.startsWith("/channel")) return "channel";
   if (pathname.startsWith("/profiles")) return "profiles";
-  return "general";
+  if (pathname.startsWith("/channel")) return "channel";
+  // Default to channel for root path
+  if (pathname === "/") return "channel";
+  return "channel"; // Default fallback
 }
 
 export function MainLayout() {
@@ -30,12 +29,6 @@ export function MainLayout() {
   const { tab } = useParams<{ tab?: string }>();
 
   const tabConfigs: Record<string, TabConfig> = {
-    general: {
-      tabs: [],
-      defaultTab: "",
-      title: t("navigation.general"),
-      path: "/",
-    },
     monitor: {
       tabs: [
         { id: "machine", label: t("tabs.machine") },
@@ -45,20 +38,11 @@ export function MainLayout() {
       title: t("navigation.monitor"),
       path: "/monitor",
     },
-    transcoder: {
-      tabs: [
-        { id: "preset", label: t("tabs.preset") },
-        { id: "profile", label: t("tabs.profile") },
-      ],
-      defaultTab: "preset",
-      title: t("navigation.transcoder"),
-      path: "/transcoder",
-    },
     channel: {
       tabs: [],
       defaultTab: "",
       title: t("navigation.channel"),
-      path: "/channel"
+      path: "/"
     },
     profiles: {
       tabs: [],
@@ -89,18 +73,15 @@ export function MainLayout() {
 
   const renderContent = () => {
     switch (activeNav) {
-      case "general":
-        return <GeneralView />;
       case "monitor":
         return <MonitorView activeTab={currentTab} />;
-      case "transcoder":
-        return <TranscoderView activeTab={currentTab} />;
       case "channel":
         return <ChannelView />;
       case "profiles":
         return <ProfileView />;
       default:
-        return null;
+        // Default to channel view
+        return <ChannelView />;
     }
   };
 

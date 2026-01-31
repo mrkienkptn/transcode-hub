@@ -24,18 +24,40 @@ import {
 } from "@/components/ui/select";
 import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelCard } from "./ChannelCard";
+import { getChannels, Channel } from "@/api/channel";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// TODO: Replace with actual API call
-const mockChannels = [
-  { id: 1, name: "Channel 1 - Sports", input: "rtmp://input.stream/sports", profile: "Broadcast Standard", status: "running", bitrate: "8.2 Mbps", uptime: "4h 32m" },
-  { id: 2, name: "Channel 2 - News", input: "srt://192.168.1.50:9000", profile: "OTT Adaptive", status: "running", bitrate: "24.5 Mbps", uptime: "12h 15m" },
-  { id: 3, name: "Channel 3 - Entertainment", input: "rtmp://input.stream/ent", profile: "Social Media Package", status: "idle", bitrate: "0 Mbps", uptime: "-" },
-  { id: 4, name: "Channel 4 - Music", input: "udp://239.0.0.1:5000", profile: "Broadcast Standard", status: "running", bitrate: "7.8 Mbps", uptime: "2h 45m" },
-  { id: 5, name: "Channel 5 - Archive", input: "file:///media/archive/show.mp4", profile: "Archive Quality", status: "error", bitrate: "0 Mbps", uptime: "-" },
-  { id: 6, name: "Channel 6 - Documentary", input: "rtmp://input.stream/doc", profile: "Broadcast Standard", status: "running", bitrate: "6.5 Mbps", uptime: "1h 20m" },
-  { id: 7, name: "Channel 7 - Kids", input: "srt://192.168.1.51:9000", profile: "OTT Adaptive", status: "idle", bitrate: "0 Mbps", uptime: "-" },
-  { id: 8, name: "Channel 8 - Movies", input: "udp://239.0.0.2:5000", profile: "Archive Quality", status: "running", bitrate: "15.2 Mbps", uptime: "5h 10m" },
+// Sample channel to show when API returns empty list
+const sampleChannels = [
+  { id: 1, name: "Transcoder", input: "rtmp://input.stream/transcoder", profile: "Broadcast Standard", status: "running", bitrate: "8.2 Mbps", uptime: "4h 32m" },
 ];
+
+// Extended channel type for display purposes
+interface DisplayChannel {
+  id: number;
+  name: string;
+  input: string;
+  profile?: string;
+  status: "running" | "idle" | "error";
+  bitrate?: string;
+  uptime?: string;
+  thumbnail?: string;
+}
+
+// Convert API Channel to DisplayChannel format
+const convertChannelToDisplay = (channel: Channel): DisplayChannel => {
+  return {
+    id: channel.id,
+    name: channel.name,
+    input: channel.input,
+    profile: channel.profiles && channel.profiles.length > 0 ? `Profile ${channel.profiles[0]}` : undefined,
+    status: (channel.status as "running" | "idle" | "error") || "idle",
+    bitrate: "0 Mbps", // TODO: Get from API if available
+    uptime: "-", // TODO: Get from API if available
+    thumbnail: channel.thumbnail,
+  };
+};
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_RECORDS_PER_PAGE = 5;
@@ -58,7 +80,9 @@ export function ChannelManager() {
     const saved = localStorage.getItem("channelLayout");
     return (saved === "grid" || saved === "table") ? saved : "table";
   });
-  const [displayedChannels, setDisplayedChannels] = useState<typeof mockChannels>([]);
+  const [channels, setChannels] = useState<DisplayChannel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [displayedChannels, setDisplayedChannels] = useState<DisplayChannel[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
   const statusConfig = getStatusConfig(t);
@@ -67,6 +91,40 @@ export function ChannelManager() {
   const nameFilter = searchParams.get("name") || "";
   const currentPage = parseInt(searchParams.get("p") || String(DEFAULT_PAGE), 10);
   const recordsPerPage = parseInt(searchParams.get("r") || String(DEFAULT_RECORDS_PER_PAGE), 10);
+
+  // Fetch channels on mount
+  const fetchChannels = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await getChannels();
+      if (error) {
+        toast.error(`Failed to load channels: ${error}`);
+        // Show sample channels on error
+        setChannels(sampleChannels as DisplayChannel[]);
+      } else if (data) {
+        if (data.length === 0) {
+          // Show sample channels if API returns empty list
+          setChannels(sampleChannels as DisplayChannel[]);
+        } else {
+          // Convert API channels to display format
+          setChannels(data.map(convertChannelToDisplay));
+        }
+      } else {
+        // Fallback to sample channels
+        setChannels(sampleChannels as DisplayChannel[]);
+      }
+    } catch (err) {
+      toast.error(`Failed to load channels: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // Show sample channels on error
+      setChannels(sampleChannels as DisplayChannel[]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChannels();
+  }, []);
 
   // Save layout preference
   useEffect(() => {
@@ -99,7 +157,7 @@ export function ChannelManager() {
   };
 
   // Filter channels based on URL search param
-  const filteredChannels = mockChannels.filter((channel) =>
+  const filteredChannels = channels.filter((channel) =>
     channel.name.toLowerCase().includes(nameFilter.toLowerCase())
   );
 
@@ -107,7 +165,7 @@ export function ChannelManager() {
   useEffect(() => {
     if (layout === "grid") {
       const initialCount = 12; // Load 12 items initially
-      setDisplayedChannels(filteredChannels.slice(0, initialCount) as typeof mockChannels);
+      setDisplayedChannels(filteredChannels.slice(0, initialCount));
     } else {
       // Reset when switching to table layout
       setDisplayedChannels([]);
@@ -228,7 +286,16 @@ export function ChannelManager() {
         </div>
       </div>
 
-      <CreateChannelModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <CreateChannelModal 
+        open={isCreateOpen} 
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          // Refetch channels when modal closes (after successful creation)
+          if (!open) {
+            fetchChannels();
+          }
+        }} 
+      />
 
       {/* Grid Layout */}
       {layout === "grid" ? (
@@ -247,9 +314,9 @@ export function ChannelManager() {
                   channel={{
                     id: channel.id,
                     name: channel.name,
-                    status: channel.status as "running" | "idle" | "error",
+                    status: channel.status,
                     uptime: channel.uptime,
-                    thumbnail: undefined, // TODO: Add thumbnail URL when available
+                    thumbnail: channel.thumbnail,
                   }}
                   onStart={() => handleStart(channel.id)}
                   onStop={() => handleStop(channel.id)}
@@ -287,7 +354,21 @@ export function ChannelManager() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedChannels.length === 0 ? (
+                  {isLoading ? (
+                    <>
+                      {[...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                          <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                          <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-40" /></TableCell>
+                          <TableCell className="hidden lg:table-cell"><Skeleton className="h-6 w-24" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                          <TableCell className="text-right hidden sm:table-cell"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="h-6 w-24 ml-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  ) : paginatedChannels.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         {t("channel.noChannels")}

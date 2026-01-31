@@ -1,9 +1,12 @@
-import { Play, Pause, Eye, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { Play, Pause, Eye, Settings2, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
+import { startChannel } from "@/api/channel";
+import { toast } from "sonner";
 
 interface ChannelCardProps {
   channel: {
@@ -19,6 +22,24 @@ interface ChannelCardProps {
   onConfigure?: () => void;
 }
 
+// Default thumbnail image for live channels without thumbnail (SVG data URI)
+const DEFAULT_LIVE_THUMBNAIL = `data:image/svg+xml,${encodeURIComponent(`
+  <svg width="640" height="360" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#0f0f0f;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="640" height="360" fill="url(#grad)"/>
+    <circle cx="320" cy="150" r="40" fill="none" stroke="#4ade80" stroke-width="3" opacity="0.6"/>
+    <circle cx="320" cy="150" r="25" fill="#4ade80" opacity="0.8"/>
+    <polygon points="310,145 310,155 320,150" fill="#1a1a1a"/>
+    <text x="320" y="220" font-family="Arial, sans-serif" font-size="24" fill="#4ade80" text-anchor="middle" font-weight="bold">LIVE</text>
+    <text x="320" y="250" font-family="Arial, sans-serif" font-size="14" fill="#888" text-anchor="middle">Streaming</text>
+  </svg>
+`)}`;
+
 export function ChannelCard({
   channel,
   onStart,
@@ -28,6 +49,7 @@ export function ChannelCard({
 }: ChannelCardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [isStarting, setIsStarting] = useState(false);
   const isLive = channel.status === "running";
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -38,21 +60,61 @@ export function ChannelCard({
     navigate(`/channel/${channel.id}`);
   };
 
+  // Determine thumbnail source
+  const getThumbnailSrc = () => {
+    if (channel.thumbnail) {
+      return channel.thumbnail;
+    }
+    // If live and no thumbnail, use default image
+    if (isLive) {
+      return DEFAULT_LIVE_THUMBNAIL;
+    }
+    // For idle/error, return null to show placeholder
+    return null;
+  };
+
+  const thumbnailSrc = getThumbnailSrc();
+
+  const handleStart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (isStarting) return;
+    
+    setIsStarting(true);
+    try {
+      const { error } = await startChannel(channel.id);
+      
+      if (error) {
+        toast.error(`Failed to start channel: ${error}`);
+      } else {
+        toast.success("Channel started successfully");
+        // Call the onStart callback if provided (e.g., to refresh the channel list)
+        onStart?.();
+      }
+    } catch (err) {
+      toast.error(`Failed to start channel: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
   return (
     <Card 
       className="glass-card group hover:border-primary/30 transition-colors overflow-hidden cursor-pointer"
       onClick={handleCardClick}
     >
       {/* Thumbnail Section */}
-      <div className="relative aspect-video bg-secondary/50 flex items-center justify-center overflow-hidden">
-        {channel.thumbnail ? (
+      <div className="relative aspect-video bg-gradient-to-br from-secondary/80 via-secondary/60 to-secondary/40 flex items-center justify-center overflow-hidden">
+        {thumbnailSrc ? (
           <img
-            src={channel.thumbnail}
+            src={thumbnailSrc}
             alt={channel.name}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="text-muted-foreground text-sm">thumb</div>
+          <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Video className="w-12 h-12 opacity-50" />
+          </div>
         )}
         
         {/* Status Badge - Top Right */}
@@ -116,14 +178,12 @@ export function ChannelCard({
             <Button
               variant="default"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStart?.();
-              }}
+              onClick={handleStart}
+              disabled={isStarting}
               className="flex-1 gap-2"
             >
               <Play className="w-4 h-4" />
-              {t("channel.start")}
+              {isStarting ? t("common.loading") : t("channel.start")}
             </Button>
           )}
 

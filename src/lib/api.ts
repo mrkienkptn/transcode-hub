@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://192.168.3.239/transcoder';
+const API_BASE_URL = 'http://localhost:8001/api/v1';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -19,7 +19,8 @@ export async function fetchApi<T>(
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const data = await response.json();

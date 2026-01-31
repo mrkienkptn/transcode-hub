@@ -18,6 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Profile } from "./ProfileManager";
+import { createProfile, updateProfile } from "@/api/profile";
+import { toast } from "sonner";
 
 interface ProfileFormProps {
   profile?: Profile | null;
@@ -80,6 +82,7 @@ export function ProfileForm({
   const [formData, setFormData] = useState<ProfileFormData>(defaultProfile);
   const [lockRatio, setLockRatio] = useState(true);
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Initialize form data when profile changes
   useEffect(() => {
@@ -135,16 +138,53 @@ export function ProfileForm({
     return `~${gbPerHour.toFixed(1)} ${t("profile.fileSizePerHour")}`;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name) {
+      toast.error("Profile name is required");
       return;
     }
-    onSave(formData as Profile);
-    if (!profile) {
-      // Reset form if creating new
-      setFormData(defaultProfile);
-      setLockRatio(true);
-      setAspectRatio(16 / 9);
+
+    setIsSaving(true);
+    try {
+      const profileData = formData as Profile;
+
+      // If editing existing profile (has id and id !== 0), update via API
+      if (profile && profile.id && profile.id !== 0) {
+        const { data, error } = await updateProfile(profile.id, profileData);
+        
+        if (error) {
+          toast.error(`Failed to update profile: ${error}`);
+          setIsSaving(false);
+          return;
+        }
+
+        if (data) {
+          toast.success("Profile updated successfully");
+          onSave(data);
+        }
+      } else {
+        // If creating new profile, make API call
+        const { data, error } = await createProfile(profileData);
+        
+        if (error) {
+          toast.error(`Failed to create profile: ${error}`);
+          setIsSaving(false);
+          return;
+        }
+
+        if (data) {
+          toast.success("Profile created successfully");
+          onSave(data);
+          // Reset form after successful creation
+          setFormData(defaultProfile);
+          setLockRatio(true);
+          setAspectRatio(16 / 9);
+        }
+      }
+    } catch (err) {
+      toast.error(`Failed to save profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -169,19 +209,24 @@ export function ProfileForm({
   return (
     <Card className="glass-card h-full flex flex-col">
       <CardContent className="p-6 flex flex-col h-full">
-        {/* ĐANG SỬA Header */}
-        {profile && (
+        {/* Header */}
+        {(profile || !readOnly) && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground pb-4 mb-4 border-b border-border/50">
             {readOnly ? (
               <>
                 <Lock className="w-4 h-4" />
-                <span>{t("profile.viewing")}: {profile.name}</span>
+                <span>{t("profile.viewing")}: {profile?.name}</span>
                 <span className="ml-auto text-xs bg-muted px-2 py-1 rounded">{t("common.readOnly")}</span>
               </>
-            ) : (
+            ) : profile && profile.id && profile.id !== 0 ? (
               <>
                 <Pencil className="w-4 h-4" />
                 <span>{t("profile.editing")}: {profile.name}</span>
+              </>
+            ) : (
+              <>
+                <Info className="w-4 h-4" />
+                <span>{t("profile.newProfile") || "New profile"}</span>
               </>
             )}
           </div>
@@ -460,9 +505,9 @@ export function ProfileForm({
                   {t("common.cancel")}
                 </Button>
               )}
-              <Button onClick={handleSubmit} className="gap-2">
+              <Button onClick={handleSubmit} className="gap-2" disabled={isSaving}>
                 <Save className="w-4 h-4" />
-                {t("common.save")}
+                {isSaving ? t("common.loading") || "Saving..." : t("common.save")}
               </Button>
             </div>
           </div>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Eye, EyeOff, Copy } from "lucide-react";
+import { Eye, EyeOff, Copy, ChevronDown, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,13 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { profile } from "console";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { createChannel } from "@/api/channel";
+import { getProfiles, Profile } from "@/api/profile";
 
 interface CreateChannelModalProps {
   open: boolean;
@@ -37,73 +44,22 @@ const mockInputs = [
   { id: "5", name: "File Input", uri: "file:///media/content.mp4" },
 ];
 
-const mockProfiles = [
-  {
-    id: "1",
-    name: "Broadcast Standard",
-    presets: [
-      {
-        id: "p1",
-        name: "1080p60 H.264",
-        codec: "H.264",
-        resolution: "1920x1080",
-      },
-      {
-        id: "p2",
-        name: "720p30 H.264",
-        codec: "H.264",
-        resolution: "1280x720",
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "OTT Adaptive",
-    presets: [
-      { id: "p3", name: "4K HEVC", codec: "HEVC", resolution: "3840x2160" },
-      { id: "p4", name: "1080p HEVC", codec: "HEVC", resolution: "1920x1080" },
-      { id: "p5", name: "720p HEVC", codec: "HEVC", resolution: "1280x720" },
-      { id: "p6", name: "480p HEVC", codec: "HEVC", resolution: "854x480" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Social Media Package",
-    presets: [
-      {
-        id: "p7",
-        name: "Square 1080p",
-        codec: "H.264",
-        resolution: "1080x1080",
-      },
-      {
-        id: "p8",
-        name: "Vertical 1080p",
-        codec: "H.264",
-        resolution: "1080x1920",
-      },
-    ],
-  },
-];
-
-const formatTypes = ["RTMP", "HLS", "DASH", "UDP", "RTP", "SRT", "FILE"];
-
-const defaultUriByFormat: Record<string, string> = {
-  RTMP: "rtmp://output.stream/live",
-  HLS: "http://cdn.example.com/hls/stream.m3u8",
-  DASH: "http://cdn.example.com/dash/stream.mpd",
-  UDP: "udp://239.0.0.100:5000",
-  RTP: "rtp://239.0.0.100:5004",
-  SRT: "srt://output.server:9000",
-  FILE: "file:///output/recording.ts",
+// Helper function to format profile display
+const formatProfileDisplay = (profile: Profile) => {
+  const resolution = profile.width && profile.height ? `${profile.width}x${profile.height}` : "N/A";
+  const bitrate = profile.video_bitrate ? `${profile.video_bitrate}` : "N/A";
+  const codec = profile.codec || "N/A";
+  return { resolution, bitrate, codec };
 };
 
-interface Target {
-  id: string;
-  format: string;
-  outputUri: string;
-  selectedPresets: string[];
-}
+const targetFormats = ["HLS", "DASH", "RTMP", "RTSP"];
+
+const defaultTargetLinks: Record<string, string> = {
+  HLS: "http://cdn.example.com/hls/stream.m3u8",
+  DASH: "http://cdn.example.com/dash/stream.mpd",
+  RTMP: "rtmp://output.stream/live",
+  RTSP: "rtsp://output.stream:554/live",
+};
 
 interface ChannelFormData {
   name: string;
@@ -113,21 +69,23 @@ interface ChannelFormData {
   backupInputId: string;
   backupInputUri: string;
   backupInputKey: string;
-  profileId: string;
-  targets: Target[];
+  profileIds: number[]; // Changed to number array for API
+  targetLinks: Record<string, string>; // Format -> URI mapping
+  selectedTargets: string[]; // Selected target formats
 }
 
-const defaultFormData: ChannelFormData = {
+const getDefaultFormData = (profiles: Profile[]): ChannelFormData => ({
   name: "New Channel",
-  mainInputId: mockInputs[0]?.id,
-  mainInputUri: mockInputs[0]?.uri,
+  mainInputId: mockInputs[0]?.id || "",
+  mainInputUri: mockInputs[0]?.uri || "",
   mainInputKey: "",
-  backupInputId: mockInputs[0]?.id,
-  backupInputUri: mockInputs[0]?.uri,
+  backupInputId: mockInputs[0]?.id || "",
+  backupInputUri: mockInputs[0]?.uri || "",
   backupInputKey: "",
-  profileId: mockProfiles[0]?.id,
-  targets: [],
-};
+  profileIds: profiles.map((p) => p.id) as number[], // Default: select all profiles
+  targetLinks: { ...defaultTargetLinks }, // Pre-generate all target links
+  selectedTargets: targetFormats, // Default: select all targets
+});
 
 // Generate a random stream key
 const generateStreamKey = (): string => {
@@ -163,15 +121,54 @@ export function CreateChannelModal({
   onOpenChange,
 }: CreateChannelModalProps) {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState<ChannelFormData>(defaultFormData);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [formData, setFormData] = useState<ChannelFormData>(getDefaultFormData([]));
   const [showMainKey, setShowMainKey] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
-  const selectedProfile = mockProfiles.find((p) => p.id === formData.profileId);
+  // Fetch profiles when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchProfiles();
+    }
+  }, [open]);
+
+  // Update form data when profiles are loaded
+  useEffect(() => {
+    if (profiles.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        profileIds: profiles.map((p) => p.id), // Default: select all profiles
+      }));
+    }
+  }, [profiles]);
+
+  const fetchProfiles = async () => {
+    setIsLoadingProfiles(true);
+    try {
+      const { data, error } = await getProfiles();
+      if (error) {
+        toast.error(`Failed to load profiles: ${error}`);
+      } else if (data) {
+        setProfiles(data);
+      }
+    } catch (err) {
+      toast.error(`Failed to load profiles: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingProfiles(false);
+    }
+  };
+
+  const selectedProfiles = profiles.filter((p) => formData.profileIds.includes(p.id));
   const isRtmpPush = mockInputs.find((i) => i.id === formData.mainInputId)?.name === "RTMP Push";
 
   const handleClose = () => {
-    setFormData(defaultFormData);
+    setFormData(getDefaultFormData(profiles));
     setShowMainKey(false);
+    setIsSubmitting(false);
+    setIsAdvancedOpen(false);
     onOpenChange(false);
   };
 
@@ -227,70 +224,106 @@ export function CreateChannelModal({
     }));
   };
 
-  const handleProfileSelect = (profileId: string) => {
-    // Reset targets when profile changes (presets may be different)
-    setFormData((prev) => ({
-      ...prev,
-      profileId,
-      targets: prev.targets.map((t) => ({ ...t, selectedPresets: [] })),
-    }));
-  };
-
-  const addTarget = () => {
-    const newTarget: Target = {
-      id: Date.now().toString(),
-      format: "RTMP",
-      outputUri: defaultUriByFormat["RTMP"],
-      selectedPresets: [],
-    };
-    setFormData((prev) => ({
-      ...prev,
-      targets: [...prev.targets, newTarget],
-    }));
-  };
-
-  const removeTarget = (targetId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      targets: prev.targets.filter((t) => t.id !== targetId),
-    }));
-  };
-
-  const updateTarget = (targetId: string, updates: Partial<Target>) => {
-    setFormData((prev) => ({
-      ...prev,
-      targets: prev.targets.map((t) =>
-        t.id === targetId ? { ...t, ...updates } : t
-      ),
-    }));
-  };
-
-  const handleTargetFormatChange = (targetId: string, format: string) => {
-    updateTarget(targetId, {
-      format,
-      outputUri: defaultUriByFormat[format],
+  const handleProfileToggle = (profileId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.profileIds.includes(profileId);
+      return {
+        ...prev,
+        profileIds: isSelected
+          ? prev.profileIds.filter((id) => id !== profileId)
+          : [...prev.profileIds, profileId],
+      };
     });
   };
 
-  const togglePresetForTarget = (targetId: string, presetId: string) => {
+  const handleTargetToggle = (format: string) => {
+    setFormData((prev) => {
+      const isSelected = prev.selectedTargets.includes(format);
+      return {
+        ...prev,
+        selectedTargets: isSelected
+          ? prev.selectedTargets.filter((f) => f !== format)
+          : [...prev.selectedTargets, format],
+      };
+    });
+  };
+
+  const handleTargetLinkChange = (format: string, uri: string) => {
     setFormData((prev) => ({
       ...prev,
-      targets: prev.targets.map((t) => {
-        if (t.id !== targetId) return t;
-        const isSelected = t.selectedPresets.includes(presetId);
-        return {
-          ...t,
-          selectedPresets: isSelected
-            ? t.selectedPresets.filter((p) => p !== presetId)
-            : [...t.selectedPresets, presetId],
-        };
-      }),
+      targetLinks: {
+        ...prev.targetLinks,
+        [format]: uri,
+      },
     }));
   };
 
-  const handleSubmit = () => {
-    console.log("Creating channel:", formData);
-    handleClose();
+  const handleCopyTargetLink = async (format: string) => {
+    try {
+      await navigator.clipboard.writeText(formData.targetLinks[format] || "");
+      toast.success(`${format} link copied to clipboard`);
+    } catch (err) {
+      toast.error("Failed to copy link");
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.name.trim()) {
+      toast.error("Channel name is required");
+      return;
+    }
+
+    if (!formData.mainInputUri.trim()) {
+      toast.error("Input URI is required");
+      return;
+    }
+
+    if (formData.profileIds.length === 0) {
+      toast.error("At least one profile must be selected");
+      return;
+    }
+
+    if (formData.selectedTargets.length === 0) {
+      toast.error("At least one target must be selected");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Build target URLs array from selected targets and their links
+      const targetUrls = formData.selectedTargets
+        .map((format) => formData.targetLinks[format])
+        .filter((url) => url && url.trim() !== ""); // Filter out empty URLs
+
+      // Build the request payload
+      const channelData = {
+        name: formData.name.trim(),
+        input: formData.mainInputUri.trim(),
+        profiles: formData.profileIds.length > 0 ? formData.profileIds : undefined,
+        target: targetUrls.length > 0 ? targetUrls : undefined,
+        token: isRtmpPush && formData.mainInputKey ? formData.mainInputKey : undefined,
+      };
+
+      const { data, error } = await createChannel(channelData);
+
+      if (error) {
+        toast.error(`Failed to create channel: ${error}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data) {
+        toast.success("Channel created successfully");
+        handleClose();
+        // Optionally refresh the channel list by calling a callback or refetch
+        // This would require adding an onSuccess prop to the component
+      }
+    } catch (err) {
+      toast.error(`Failed to create channel: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -417,184 +450,146 @@ export function CreateChannelModal({
 
             <Separator />
 
-            {/* Profile Selection */}
+            {/* Targets Section */}
             <div className="space-y-2">
-              <Label>{t("channel.profileSection")}</Label>
-              <ScrollArea>
-                <div className="p-3 space-y-2">
-                  {mockProfiles.map((profile) => {
-                    const isSelected = formData.profileId.includes(profile.id);
-                    return (
-                      <div
-                        key={profile.id}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors border
-  ${
-    isSelected
-      ? "bg-primary/10 border-primary/30"
-      : "bg-secondary/50 border-transparent hover:bg-secondary"
-  }`}
-                        onClick={() => handleProfileSelect(profile.id)}
-                      >
-                        {/* TOP ROW: Checkbox and Title */}
-                        <div className="flex items-center gap-3 mb-2">
-                          <div
-                            className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all
-      ${
-        isSelected ? "bg-primary border-primary" : "border-muted-foreground/50"
-      }`}
-                          >
-                            {isSelected && (
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            )}
-                          </div>
-
-                          <div className="font-medium text-sm text-foreground">
-                            {profile.name}
-                          </div>
-                        </div>
-
-                        {/* BOTTOM ROW: Presets as Chips (Indented to align with Title) */}
-                        <div className="flex flex-row flex-wrap gap-1.5 ml-7">
-                          {profile.presets.map((preset, index) => (
-                            <div
-                              key={index}
-                              className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-[10px] font-medium text-secondary-foreground border border-secondary-foreground/10"
-                            >
-                              {preset.name} • {preset.codec} •{" "}
-                              {preset.resolution}
-                            </div>
-                          ))}
-                        </div>
+              <Label className="text-base font-semibold">{t("channel.targets")}</Label>
+              <div className="space-y-3">
+                {targetFormats.map((format) => {
+                  const isSelected = formData.selectedTargets.includes(format);
+                  return (
+                    <div
+                      key={format}
+                      className={`p-3 rounded-lg transition-colors border ${
+                        isSelected
+                          ? "bg-primary/10 border-primary/30"
+                          : "bg-secondary/50 border-transparent hover:bg-secondary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleTargetToggle(format)}
+                          className="shrink-0"
+                        />
+                        <Label className="font-medium text-sm text-foreground cursor-pointer flex-1">
+                          {format}
+                        </Label>
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+                      <div className="flex items-center gap-2 ml-7">
+                        <Input
+                          className="flex-1 font-mono text-xs"
+                          value={formData.targetLinks[format] || ""}
+                          onChange={(e) => handleTargetLinkChange(format, e.target.value)}
+                          placeholder={`Enter ${format} output URI`}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleCopyTargetLink(format)}
+                          className="h-9 w-9 shrink-0"
+                          type="button"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <Separator />
 
-            {/* Targets Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">{t("channel.targets")}</Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addTarget}
-                  className="gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  {t("channel.addTarget")}
-                </Button>
-              </div>
-
-              {formData.targets.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
-                  {t("channel.noTargets")}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {formData.targets.map((target, index) => (
-                    <div
-                      key={target.id}
-                      className="p-4 rounded-lg border bg-secondary/30 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {t("channel.target")} {index + 1}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => removeTarget(target.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      {/* Format & Output URI */}
-                      <div className="flex gap-2">
-                        <Select
-                          value={target.format}
-                          onValueChange={(v) =>
-                            handleTargetFormatChange(target.id, v)
-                          }
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {formatTypes.map((format) => (
-                              <SelectItem key={format} value={format}>
-                                {format}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          className="flex-1"
-                          value={target.outputUri}
-                          onChange={(e) =>
-                            updateTarget(target.id, {
-                              outputUri: e.target.value,
-                            })
-                          }
-                          placeholder={t("channel.outputUri")}
-                        />
-                      </div>
-
-                      {/* Preset Selection */}
-                      {selectedProfile &&
-                        selectedProfile.presets.length > 0 && (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">
-                              {t("channel.presets")}
-                            </Label>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProfile.presets.map((preset) => {
-                                const isSelected =
-                                  target.selectedPresets.includes(preset.id);
-                                return (
-                                  <div
-                                    key={preset.id}
-                                    onClick={() =>
-                                      togglePresetForTarget(
-                                        target.id,
-                                        preset.id
-                                      )
-                                    }
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors text-xs
-                                    ${
-                                      isSelected
-                                        ? "bg-primary/20 border border-primary/50 text-primary"
-                                        : "bg-secondary border border-transparent hover:bg-secondary/80"
-                                    }`}
-                                  >
-                                    {isSelected && (
-                                      <Check className="w-3 h-3" />
-                                    )}
-                                    <span>{preset.name}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
+            {/* Advanced Settings - Profile Config */}
+            <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
+              <div className="space-y-2">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between p-0 h-auto hover:bg-transparent"
+                    type="button"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-muted-foreground" />
+                      <Label className="text-base font-semibold cursor-pointer">
+                        Advanced Settings
+                      </Label>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                        isAdvancedOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent className="space-y-4 pt-2">
+                  {/* Profile Selection */}
+                  <div className="space-y-2">
+                    <Label>{t("channel.profileSection")}</Label>
+                    {isLoadingProfiles ? (
+                      <div className="text-sm text-muted-foreground">Loading profiles...</div>
+                    ) : profiles.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No profiles available</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {profiles.map((profile) => {
+                          const isSelected = formData.profileIds.includes(profile.id);
+                          const { resolution, bitrate, codec } = formatProfileDisplay(profile);
+                          return (
+                            <div
+                              key={profile.id}
+                              className={`p-3 rounded-lg transition-colors border ${
+                                isSelected
+                                  ? "bg-primary/10 border-primary/30"
+                                  : "bg-secondary/50 border-transparent hover:bg-secondary"
+                              }`}
+                            >
+                              {/* TOP ROW: Checkbox and Title */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => handleProfileToggle(profile.id)}
+                                  className="shrink-0"
+                                />
+                                <div className="font-medium text-sm text-foreground">
+                                  {profile.name}
+                                </div>
+                              </div>
+
+                              {/* BOTTOM ROW: Chips with separators */}
+                              <div className="flex items-center gap-0 ml-7">
+                                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-secondary text-[12px] font-medium text-secondary-foreground border border-secondary-foreground/10 w-24">
+                                  {resolution}
+                                </div>
+                                <div className="h-6 w-px bg-border mx-1" />
+                                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-secondary text-[12px] font-medium text-secondary-foreground border border-secondary-foreground/10 w-24">
+                                  {bitrate} {bitrate !== "N/A" && "kbps"}
+                                </div>
+                                <div className="h-6 w-px bg-border mx-1" />
+                                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-secondary text-[12px] font-medium text-secondary-foreground border border-secondary-foreground/10 w-24">
+                                  {codec}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
           </div>
         </ScrollArea>
 
         <DialogFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{t("channel.createChannel")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || isLoadingProfiles}>
+            {isSubmitting ? "Creating..." : t("channel.createChannel")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -11,30 +11,61 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
+import { getChannel, Channel } from "@/api/channel";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock data - TODO: Replace with actual API calls
-const mockChannelData = {
-  id: 1,
-  name: "Camera Sân Vườn",
-  status: "running" as const,
-  uptime: "2h 15m",
-  speed: 1.25,
-  fps: 30,
-  bitrate: 4500,
-  cpuUsage: 15,
-  gpuUsage: 22,
-  ffmpegPid: 89,
-  input: {
-    type: "RTMP",
-    resolution: "1920x1080",
-    codec: "H.264",
-    fps: 30,
-  },
-  outputs: {
-    hls: "http://192.168.1.10:8080/hls/cam1/index.m3u8",
-    dash: "http://192.168.1.10:8080/dash/cam1/manifest.mpd",
-    rtmp: "rtmp://youtube.com/live/...",
-  },
+// Extended channel data for display (includes computed/derived fields)
+interface DisplayChannelData extends Channel {
+  uptime?: string;
+  speed?: number;
+  fps?: number;
+  bitrate?: number;
+  cpuUsage?: number;
+  gpuUsage?: number;
+  ffmpegPid?: number;
+  inputDetails?: {
+    type: string;
+    resolution?: string;
+    codec?: string;
+    fps?: number;
+  };
+  outputs?: {
+    hls?: string;
+    dash?: string;
+    rtmp?: string;
+    rtsp?: string;
+  };
+}
+
+// Helper function to parse input URL and extract details
+const parseInputUrl = (input: string): { type: string; resolution?: string; codec?: string; fps?: number } => {
+  if (input.startsWith("rtmp://")) return { type: "RTMP" };
+  if (input.startsWith("srt://")) return { type: "SRT" };
+  if (input.startsWith("udp://")) return { type: "UDP" };
+  if (input.startsWith("file://")) return { type: "File" };
+  if (input.startsWith("rtsp://")) return { type: "RTSP" };
+  return { type: "Unknown" };
+};
+
+// Helper function to categorize target URLs
+const categorizeTargets = (targets?: string[]): { hls?: string; dash?: string; rtmp?: string; rtsp?: string } => {
+  if (!targets || targets.length === 0) return {};
+  
+  const categorized: { hls?: string; dash?: string; rtmp?: string; rtsp?: string } = {};
+  
+  targets.forEach((url) => {
+    if (url.includes(".m3u8") || url.includes("/hls/")) {
+      categorized.hls = url;
+    } else if (url.includes(".mpd") || url.includes("/dash/")) {
+      categorized.dash = url;
+    } else if (url.startsWith("rtmp://")) {
+      categorized.rtmp = url;
+    } else if (url.startsWith("rtsp://")) {
+      categorized.rtsp = url;
+    }
+  });
+  
+  return categorized;
 };
 
 // Generate mock chart data
@@ -193,11 +224,59 @@ export function DetailChannel() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [channel] = useState(mockChannelData); // TODO: Fetch from API using id
+  const [channel, setChannel] = useState<DisplayChannelData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState("auto");
   const [logs] = useState<string[]>([]); // TODO: Fetch logs from API
+
+  // Fetch channel data
+  useEffect(() => {
+    const fetchChannelData = async () => {
+      if (!id) {
+        toast.error("Channel ID is required");
+        navigate("/channel");
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const { data, error } = await getChannel(parseInt(id, 10));
+        
+        if (error) {
+          toast.error(`Failed to load channel: ${error}`);
+          navigate("/channel");
+          return;
+        }
+
+        if (data) {
+          // Map API data to display format
+          const displayData: DisplayChannelData = {
+            ...data,
+            inputDetails: parseInputUrl(data.input),
+            outputs: categorizeTargets(data.target),
+            // Default values for metrics (these would come from a separate metrics API)
+            uptime: "0h 0m",
+            speed: 1.0,
+            fps: 30,
+            bitrate: 0,
+            cpuUsage: 0,
+            gpuUsage: 0,
+            ffmpegPid: 0,
+          };
+          setChannel(displayData);
+        }
+      } catch (err) {
+        toast.error(`Failed to load channel: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        navigate("/channel");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchChannelData();
+  }, [id, navigate]);
 
   const handleCopy = async (text: string, label: string) => {
     try {
@@ -223,6 +302,40 @@ export function DetailChannel() {
     toast.info("Opening configuration...");
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-slide-in">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-96" />
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!channel) {
+    return (
+      <div className="space-y-6 animate-slide-in">
+        <Card className="glass-card">
+          <CardContent className="p-8 text-center text-muted-foreground">
+            Channel not found
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-slide-in">
       {/* Header with Back Button and Controls */}
@@ -244,7 +357,7 @@ export function DetailChannel() {
                 LIVE
               </Badge>
             )}
-            {channel.status === "running" && (
+            {channel.status === "running" && channel.uptime && (
               <span className="text-sm text-muted-foreground">
                 Uptime: {channel.uptime}
               </span>
@@ -352,7 +465,7 @@ export function DetailChannel() {
                 </div>
                 {/* Input Details */}
                 <div className="text-xs text-muted-foreground">
-                  Input: {channel.input.type} | {channel.input.resolution} | {channel.input.codec} | {channel.input.fps}fps
+                  Input: {channel.inputDetails?.type || "Unknown"} | {channel.input}
                 </div>
               </div>
             </CardContent>
@@ -365,62 +478,96 @@ export function DetailChannel() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* HLS Master */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">HLS Master:</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={channel.outputs.hls}
-                    readOnly
-                    className="flex-1 font-mono text-xs bg-secondary/30"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy(channel.outputs.hls, "HLS Master")}
-                    className="gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy
-                  </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
-                    <QrCode className="w-4 h-4" />
-                  </Button>
+              {channel.outputs?.hls && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">HLS Master:</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={channel.outputs.hls}
+                      readOnly
+                      className="flex-1 font-mono text-xs bg-secondary/30"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(channel.outputs!.hls!, "HLS Master")}
+                      className="gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-9 w-9">
+                      <QrCode className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               {/* DASH Manifest */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">DASH Manifest:</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={channel.outputs.dash}
-                    readOnly
-                    className="flex-1 font-mono text-xs bg-secondary/30"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy(channel.outputs.dash, "DASH Manifest")}
-                    className="gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy
-                  </Button>
+              {channel.outputs?.dash && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">DASH Manifest:</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={channel.outputs.dash}
+                      readOnly
+                      className="flex-1 font-mono text-xs bg-secondary/30"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(channel.outputs!.dash!, "DASH Manifest")}
+                      className="gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               {/* RTMP Push */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">RTMP Push:</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={channel.outputs.rtmp}
-                    readOnly
-                    className="flex-1 font-mono text-xs bg-secondary/30"
-                  />
-                  <Button variant="outline" size="sm" className="gap-2">
-                    Show
-                  </Button>
+              {channel.outputs?.rtmp && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">RTMP Push:</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={channel.outputs.rtmp}
+                      readOnly
+                      className="flex-1 font-mono text-xs bg-secondary/30"
+                    />
+                    <Button variant="outline" size="sm" className="gap-2">
+                      Show
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {/* RTSP */}
+              {channel.outputs?.rtsp && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">RTSP:</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={channel.outputs.rtsp}
+                      readOnly
+                      className="flex-1 font-mono text-xs bg-secondary/30"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(channel.outputs!.rtsp!, "RTSP")}
+                      className="gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {/* Show message if no outputs */}
+              {!channel.outputs?.hls && !channel.outputs?.dash && !channel.outputs?.rtmp && !channel.outputs?.rtsp && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  No output links configured
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -434,37 +581,47 @@ export function DetailChannel() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Speed Gauge - Full width on mobile, spans 2 columns on larger screens */}
-                <div className="md:col-span-2 flex justify-center">
-                  <SpeedGauge value={channel.speed} />
-                </div>
+                {channel.speed !== undefined && (
+                  <div className="md:col-span-2 flex justify-center">
+                    <SpeedGauge value={channel.speed} />
+                  </div>
+                )}
 
                 {/* FPS Chart */}
-                <div className="space-y-2">
-                  <FPSChart fps={channel.fps} />
-                </div>
+                {channel.fps !== undefined && (
+                  <div className="space-y-2">
+                    <FPSChart fps={channel.fps} />
+                  </div>
+                )}
 
                 {/* Bitrate Chart */}
-                <div className="space-y-2">
-                  <BitrateChart bitrate={channel.bitrate} />
-                </div>
+                {channel.bitrate !== undefined && (
+                  <div className="space-y-2">
+                    <BitrateChart bitrate={channel.bitrate} />
+                  </div>
+                )}
 
                 {/* CPU Usage */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">
-                      CPU Usage: {channel.cpuUsage}% (FFmpeg PID: {channel.ffmpegPid})
-                    </span>
+                {channel.cpuUsage !== undefined && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">
+                        CPU Usage: {channel.cpuUsage}%{channel.ffmpegPid ? ` (FFmpeg PID: ${channel.ffmpegPid})` : ""}
+                      </span>
+                    </div>
+                    <Progress value={channel.cpuUsage} className="h-2" />
                   </div>
-                  <Progress value={channel.cpuUsage} className="h-2" />
-                </div>
+                )}
 
                 {/* GPU Usage */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">GPU: {channel.gpuUsage}%</span>
+                {channel.gpuUsage !== undefined && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">GPU: {channel.gpuUsage}%</span>
+                    </div>
+                    <Progress value={channel.gpuUsage} className="h-2" />
                   </div>
-                  <Progress value={channel.gpuUsage} className="h-2" />
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

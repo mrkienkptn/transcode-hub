@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ProfileForm } from "./ProfileForm";
+import { getProfiles, updateProfile, Profile } from "@/api/profile";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Re-export Profile type for backward compatibility
+export type { Profile };
 
 // TODO: Replace with actual API call
 const systemPresets = [
@@ -20,32 +26,14 @@ const mockUserProfiles = [
   { id: 7, name: "Youtube 4K HDR", isSystem: false },
 ];
 
-export interface Profile {
-  id: number;
-  name: string;
-  is_active?: boolean;
-  isSystem?: boolean;
-  codec?: string;
-  width?: number;
-  height?: number;
-  fps?: number;
-  video_bitrate?: number;
-  gop_size?: number;
-  preset?: string;
-  profile?: string;
-  audio_codec?: string;
-  audio_bitrate?: number;
-  sample_rate?: number;
-  created_at?: string;
-}
-
 export function ProfileManager() {
   const { t } = useTranslation();
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
-  const [userProfiles, setUserProfiles] = useState(mockUserProfiles);
+  const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [viewingSystemPreset, setViewingSystemPreset] = useState<Profile | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Convert system presets to Profile format
   const systemProfiles: Profile[] = useMemo(() => {
@@ -93,18 +81,60 @@ export function ProfileManager() {
     );
   }, [userProfilesList, searchQuery]);
 
-  // Auto-select first preset on mount
+  // Fetch profiles on mount
+  const fetchProfiles = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await getProfiles();
+      if (error) {
+        toast.error(`Failed to load profiles: ${error}`);
+        // Fallback to mock data on error
+        setUserProfiles(mockUserProfiles);
+      } else if (data) {
+        setUserProfiles(data);
+      }
+    } catch (err) {
+      toast.error(`Failed to load profiles: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // Fallback to mock data on error
+      setUserProfiles(mockUserProfiles);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Select first system preset by default if nothing is selected
-    if (systemProfiles.length > 0 && !viewingSystemPreset && !editingProfile && !isCreatingNew) {
+    fetchProfiles();
+  }, []);
+
+  // Auto-select first preset after profiles are loaded
+  useEffect(() => {
+    if (!isLoading && systemProfiles.length > 0 && !viewingSystemPreset && !editingProfile && !isCreatingNew) {
       handleViewSystemPreset(systemProfiles[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [isLoading, systemProfiles, viewingSystemPreset, editingProfile, isCreatingNew]);
 
   const handleCreate = () => {
-    setEditingProfile(null);
+    // Create a new profile with default values
+    const newProfile: Profile = {
+      id: 0, // Temporary ID, will be replaced on save
+      name: "",
+      codec: "libx264",
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      video_bitrate: 5000,
+      gop_size: 60,
+      preset: "veryfast",
+      profile: "main",
+      audio_codec: "aac",
+      audio_bitrate: 128,
+      sample_rate: 44100,
+      is_active: true,
+      isSystem: false,
+    };
+    setEditingProfile(newProfile);
     setIsCreatingNew(true);
+    setViewingSystemPreset(null);
   };
 
   const handleEdit = (profile: Profile) => {
@@ -127,23 +157,13 @@ export function ProfileManager() {
     }
   };
 
-  const handleSave = (profileData: Profile) => {
-    // TODO: Replace with actual API call
-    if (editingProfile) {
-      // Update existing profile
-      setUserProfiles((prev) =>
-        prev.map((p) => (p.id === editingProfile.id ? { ...p, ...profileData } : p))
-      );
-      setEditingProfile({ ...editingProfile, ...profileData });
-    } else {
-      // Create new profile
-      const newProfile = {
-        id: Date.now(),
-        ...profileData,
-        isSystem: false,
-      };
-      setUserProfiles((prev) => [...prev, newProfile]);
-      setEditingProfile(newProfile);
+  const handleSave = async (profileData: Profile) => {
+    // Refetch profiles list after create/update
+    await fetchProfiles();
+    
+    // Update editing profile with returned data
+    if (profileData.id) {
+      setEditingProfile(profileData);
       setIsCreatingNew(false);
     }
   };
@@ -191,7 +211,13 @@ export function ProfileManager() {
 
             {/* Combined Profile List */}
             <div className="space-y-4 flex-1 overflow-y-auto scrollbar-thin">
-              {filteredSystemProfiles.length === 0 && filteredUserProfiles.length === 0 ? (
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : filteredSystemProfiles.length === 0 && filteredUserProfiles.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   {searchQuery ? t("profile.notFound") : t("profile.noProfiles")}
                 </div>
@@ -284,9 +310,9 @@ export function ProfileManager() {
         {/* Right Panel - Profile Form */}
         <div className="lg:col-span-2 min-h-0">
           <ProfileForm
-            profile={viewingSystemPreset || (isCreatingNew ? null : editingProfile || undefined)}
+            profile={viewingSystemPreset || editingProfile || undefined}
             onSave={handleSave}
-            onDelete={editingProfile ? handleDelete : undefined}
+            onDelete={editingProfile && !isCreatingNew ? handleDelete : undefined}
             onCancel={isCreatingNew || editingProfile || viewingSystemPreset ? handleCancel : undefined}
             readOnly={!!viewingSystemPreset}
           />

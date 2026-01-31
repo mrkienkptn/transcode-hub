@@ -8,8 +8,8 @@ interface MonitorViewProps {
 export function MonitorView({ activeTab }: MonitorViewProps) {
   return (
     <div className="animate-slide-in">
-      {activeTab === "machine" && <MachineMetrics />}
       {activeTab === "channels" && <ChannelMetrics />}
+      {activeTab === "machine" && <MachineMetrics />}
     </div>
   );
 }

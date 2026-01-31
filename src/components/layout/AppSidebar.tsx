@@ -44,10 +44,9 @@ export function AppSidebar({ activeNav, onNavChange }: AppSidebarProps) {
   const { theme, setTheme } = useTheme();
 
   const navItems: NavItem[] = [
-    { id: "general", label: t("navigation.general"), icon: <Info className="w-5 h-5" />, path: "/" },
-    { id: "monitor", label: t("navigation.monitor"), icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "machine" },
-    { id: "transcoder", label: t("navigation.transcoder"), icon: <Video className="w-5 h-5" />, path: "/transcoder", defaultTab: "preset" },
-    { id: "channel", label: t("navigation.channel"), icon: <Radio className="w-5 h-5" />, path: "/channel"},
+
+    { id: "channel", label: t("navigation.channel"), icon: <Radio className="w-5 h-5" />, path: "/"},
+    { id: "monitor", label: t("navigation.monitor"), icon: <Monitor className="w-5 h-5" />, path: "/monitor", defaultTab: "channels" },
     { id: "profiles", label: t("navigation.profiles"), icon: <Layers className="w-5 h-5" />, path: "/profiles"},
   ];
   
